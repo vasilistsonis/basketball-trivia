@@ -1,0 +1,458 @@
+/* ── Reset & Base ───────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --card: #0f3460;
+  --accent: #e94560;
+  --text: #eaeaea;
+  --text-muted: #a0a0b0;
+  --radius: 12px;
+  --transition: 0.2s ease;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* ── Utilities ─────────────────────────────────────────── */
+.screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 2.5rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.card-wide {
+  max-width: 640px;
+}
+
+/* ── Buttons ───────────────────────────────────────────── */
+.btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--transition), opacity var(--transition);
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
+.btn-large {
+  padding: 1rem 2.5rem;
+  font-size: 1.15rem;
+  margin-top: 1.5rem;
+}
+
+/* ── Inputs ────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  transition: border-color var(--transition);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── Login ─────────────────────────────────────────────── */
+.app-title {
+  font-size: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.welcome-msg {
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}
+
+/* ── Team Setup ────────────────────────────────────────── */
+.team-setup-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.team-config {
+  flex: 1;
+  min-width: 220px;
+}
+
+.color-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: transform var(--transition);
+}
+
+.color-swatch.selected {
+  border-color: #fff;
+  transform: scale(1.2);
+}
+
+.color-swatch:hover {
+  transform: scale(1.15);
+}
+
+/* ── Game Board ────────────────────────────────────────── */
+.game-screen {
+  justify-content: flex-start;
+  padding-top: 1.5rem;
+}
+
+.turn-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  border: 2px solid;
+  border-radius: 999px;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+}
+
+.turn-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.board {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 900px;
+}
+
+.category-column {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1rem;
+  min-width: 140px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.category-header {
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.category-icon {
+  font-size: 1.5rem;
+  display: block;
+}
+
+.category-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.slot-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition), border-color var(--transition);
+}
+
+.slot-btn:hover:not(:disabled) {
+  background: var(--accent);
+  transform: scale(1.05);
+}
+
+.slot-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.slot-btn.answered.correct {
+  background: #27ae60;
+}
+
+.slot-btn.answered.wrong {
+  background: #c0392b;
+}
+
+/* ── Scoreboard ────────────────────────────────────────── */
+.scoreboard {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1rem;
+}
+
+.scoreboard-team {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  border: 2px solid;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.team-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.team-name {
+  font-weight: 600;
+}
+
+.team-score {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-left: 0.5rem;
+}
+
+/* ── Question Overlay ──────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.question-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 2rem;
+  max-width: 560px;
+  width: 100%;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+}
+
+.question-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.question-points {
+  background: var(--accent);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.question-team {
+  font-weight: 700;
+}
+
+.question-text {
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.option-btn {
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.option-btn:hover:not(.correct):not(.wrong) {
+  border-color: var(--accent);
+}
+
+.option-btn.selected {
+  border-color: var(--accent);
+  background: rgba(233, 69, 96, 0.15);
+}
+
+.option-btn.correct {
+  border-color: #27ae60;
+  background: rgba(39, 174, 96, 0.2);
+}
+
+.option-btn.wrong {
+  border-color: #c0392b;
+  background: rgba(192, 57, 43, 0.2);
+}
+
+/* ── Result ────────────────────────────────────────────── */
+.result-area {
+  text-align: center;
+}
+
+.result-correct {
+  color: #2ecc71;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.result-wrong {
+  color: #e74c3c;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+/* ── Game Over ─────────────────────────────────────────── */
+.final-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.final-team {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 2px solid;
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.final-team strong {
+  margin-left: auto;
+  font-size: 1.3rem;
+}
+
+.winner-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .board {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .category-column {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .scoreboard {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+/* ── Loading Indicator ─────────────────────────────────── */
+.loading-indicator {
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 1rem;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
