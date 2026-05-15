@@ -1,15 +1,5 @@
 // ── Game types ──
 
-export interface User {
-  username: string;
-}
-
-export interface Team {
-  name: string;
-  color: string;
-  score: number;
-}
-
 export type CategoryId =
   | 'geography'
   | 'history'
@@ -22,29 +12,34 @@ export interface CategoryMeta {
   label: string;
   description: string;
   icon: string;
-  slots: DifficultySlot[];
+  color: string;
+  questionCount: number;
 }
 
-export interface DifficultySlot {
-  points: 1 | 2 | 3;
-  /** Unique key within category, e.g. "geography-1" */
+export interface ApiCategorySlot {
+  points: number;
   key: string;
+  questionCount: number;
 }
 
 export interface Question {
   id: string;
   category: CategoryId;
-  points: 1 | 2 | 3;
+  points: number;
   question: string;
-  /** For logo / missing player questions extra media hints */
   imageUrl?: string;
   options: string[];
   correctIndex: number;
 }
 
+export interface Team {
+  name: string;
+  color: string;
+  score: number;
+}
+
 export type GamePhase =
-  | 'login'
-  | 'lobby'
+  | 'home'
   | 'team-setup'
   | 'playing'
   | 'question'
@@ -56,13 +51,25 @@ export interface AnsweredSlot {
   correct: boolean;
 }
 
+/** Per-team one-time-use power-ups (one of each per game) */
+export interface PowerUps {
+  usedDouble: boolean;
+  usedFiftyFifty: boolean;
+}
+
 export interface GameState {
   phase: GamePhase;
-  user: User | null;
+  categories: (CategoryMeta & { slots: ApiCategorySlot[] })[];
   teams: [Team, Team];
   currentTeamIndex: 0 | 1;
   answeredSlots: Record<string, AnsweredSlot>;
   currentQuestion: Question | null;
   currentSlotKey: string | null;
   totalSlots: number;
+  /** Power-up usage tracking per team */
+  powerUps: [PowerUps, PowerUps];
+  /** Whether the 2× multiplier is active for the current question */
+  activeDouble: boolean;
+  /** Indices of options eliminated by 50/50 for the current question */
+  fiftyFiftyEliminated: number[];
 }

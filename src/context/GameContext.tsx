@@ -1,47 +1,65 @@
 import React, { createContext, useContext, useReducer, useCallback, useRef, ReactNode } from 'react';
-import { GameState, Team, User, AnsweredSlot, Question } from '../types';
+import { GameState, Team, AnsweredSlot, Question, PowerUps, CategoryMeta, ApiCategorySlot } from '../types';
 import { fetchQuestion, fetchCategories, ApiCategory } from '../api/client';
 
 // ── Initial state ──
 
+const initialPowerUps: PowerUps = { usedDouble: false, usedFiftyFifty: false };
+
 const initialTeams: [Team, Team] = [
-  { name: 'Team 1', color: '#e74c3c', score: 0 },
-  { name: 'Team 2', color: '#3498db', score: 0 },
+  { name: 'Team 1', color: '#f97316', score: 0 },
+  { name: 'Team 2', color: '#3b82f6', score: 0 },
 ];
 
 const initialState: GameState = {
-  phase: 'login',
-  user: null,
+  phase: 'home',
+  categories: [],
   teams: initialTeams,
   currentTeamIndex: 0,
   answeredSlots: {},
   currentQuestion: null,
   currentSlotKey: null,
-  totalSlots: 12, // default, updated when categories load
+  totalSlots: 0,
+  powerUps: [{ ...initialPowerUps }, { ...initialPowerUps }],
+  activeDouble: false,
+  fiftyFiftyEliminated: [],
 };
 
 // ── Actions ──
 
 type Action =
-  | { type: 'LOGIN'; user: User }
-  | { type: 'LOGOUT' }
+  | { type: 'SET_CATEGORIES'; categories: (CategoryMeta & { slots: ApiCategorySlot[] })[] }
   | { type: 'START_SETUP' }
   | { type: 'SET_TEAMS'; teams: [Team, Team] }
   | { type: 'START_GAME'; totalSlots: number }
   | { type: 'SET_QUESTION'; question: Question; slotKey: string }
   | { type: 'ANSWER_QUESTION'; selectedIndex: number }
   | { type: 'CLOSE_QUESTION' }
-  | { type: 'RESET_GAME' };
+  | { type: 'GO_HOME' }
+  | { type: 'USE_DOUBLE' }
+  | { type: 'USE_FIFTY_FIFTY' };
+
+// ── Helpers ──
+
+/** Pick two random wrong-answer indices to eliminate */
+function pickFiftyFiftyEliminations(correctIndex: number, totalOptions: number): number[] {
+  const wrongIndices = Array.from({ length: totalOptions }, (_, i) => i).filter(
+    (i) => i !== correctIndex
+  );
+  // Shuffle and pick 2
+  for (let i = wrongIndices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [wrongIndices[i], wrongIndices[j]] = [wrongIndices[j], wrongIndices[i]];
+  }
+  return wrongIndices.slice(0, 2);
+}
 
 // ── Reducer ──
 
 function gameReducer(state: GameState, action: Action): GameState {
   switch (action.type) {
-    case 'LOGIN':
-      return { ...state, phase: 'lobby', user: action.user };
-
-    case 'LOGOUT':
-      return { ...initialState };
+    case 'SET_CATEGORIES':
+      return { ...state, categories: action.categories };
 
     case 'START_SETUP':
       return { ...state, phase: 'team-setup' };
@@ -62,6 +80,9 @@ function gameReducer(state: GameState, action: Action): GameState {
           { ...state.teams[0], score: 0 },
           { ...state.teams[1], score: 0 },
         ],
+        powerUps: [{ ...initialPowerUps }, { ...initialPowerUps }],
+        activeDouble: false,
+        fiftyFiftyEliminated: [],
       };
 
     case 'SET_QUESTION':
@@ -70,13 +91,46 @@ function gameReducer(state: GameState, action: Action): GameState {
         phase: 'question',
         currentQuestion: action.question,
         currentSlotKey: action.slotKey,
+        activeDouble: false,
+        fiftyFiftyEliminated: [],
       };
+
+    case 'USE_DOUBLE': {
+      // Can only use if not already used and no other power-up active on this question
+      const pu = state.powerUps[state.currentTeamIndex];
+      if (pu.usedDouble || state.activeDouble || state.fiftyFiftyEliminated.length > 0) return state;
+      const newPowerUps: [PowerUps, PowerUps] = [...state.powerUps] as [PowerUps, PowerUps];
+      newPowerUps[state.currentTeamIndex] = { ...pu, usedDouble: true };
+      return { ...state, powerUps: newPowerUps, activeDouble: true };
+    }
+
+    case 'USE_FIFTY_FIFTY': {
+      const pu = state.powerUps[state.currentTeamIndex];
+      if (pu.usedFiftyFifty || state.fiftyFiftyEliminated.length > 0 || state.activeDouble) return state;
+      if (!state.currentQuestion) return state;
+      const eliminated = pickFiftyFiftyEliminations(
+        state.currentQuestion.correctIndex,
+        state.currentQuestion.options.length
+      );
+      const newPowerUps: [PowerUps, PowerUps] = [...state.powerUps] as [PowerUps, PowerUps];
+      newPowerUps[state.currentTeamIndex] = { ...pu, usedFiftyFifty: true };
+      return { ...state, powerUps: newPowerUps, fiftyFiftyEliminated: eliminated };
+    }
 
     case 'ANSWER_QUESTION': {
       if (!state.currentQuestion || !state.currentSlotKey) return state;
 
       const correct = action.selectedIndex === state.currentQuestion.correctIndex;
-      const points = correct ? state.currentQuestion.points : 0;
+      let basePoints = state.currentQuestion.points;
+
+      // Apply power-up modifiers
+      if (state.activeDouble) {
+        basePoints = basePoints * 2;
+      } else if (state.fiftyFiftyEliminated.length > 0) {
+        basePoints = Math.ceil(basePoints * 0.5);
+      }
+
+      const points = correct ? basePoints : 0;
 
       const newTeams: [Team, Team] = [...state.teams] as [Team, Team];
       newTeams[state.currentTeamIndex] = {
@@ -105,14 +159,23 @@ function gameReducer(state: GameState, action: Action): GameState {
         currentQuestion: null,
         currentSlotKey: null,
         currentTeamIndex: state.currentTeamIndex === 0 ? 1 : 0,
+        activeDouble: false,
+        fiftyFiftyEliminated: [],
       };
     }
 
     case 'CLOSE_QUESTION':
-      return { ...state, phase: 'playing', currentQuestion: null, currentSlotKey: null };
+      return {
+        ...state,
+        phase: 'playing',
+        currentQuestion: null,
+        currentSlotKey: null,
+        activeDouble: false,
+        fiftyFiftyEliminated: [],
+      };
 
-    case 'RESET_GAME':
-      return { ...initialState, user: state.user, phase: 'lobby' };
+    case 'GO_HOME':
+      return { ...initialState, categories: state.categories };
 
     default:
       return state;
@@ -124,7 +187,6 @@ function gameReducer(state: GameState, action: Action): GameState {
 interface GameContextValue {
   state: GameState;
   dispatch: React.Dispatch<Action>;
-  categories: ApiCategory[];
   loadCategories: () => Promise<void>;
   selectSlot: (slotKey: string) => Promise<void>;
   loading: boolean;
@@ -134,22 +196,27 @@ const GameContext = createContext<GameContextValue | undefined>(undefined);
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
-  const [categories, setCategories] = React.useState<ApiCategory[]>([]);
   const [loading, setLoading] = React.useState(false);
-
-  // Track seen question IDs per game session to avoid repetition
   const seenIdsRef = useRef<number[]>([]);
 
   const loadCategories = useCallback(async () => {
     try {
       const cats = await fetchCategories();
-      setCategories(cats);
+      const mapped = cats.map((c: ApiCategory) => ({
+        id: c.id as any,
+        label: c.label,
+        description: c.description,
+        icon: c.icon,
+        color: c.color || '#6b7280',
+        questionCount: c.questionCount || c.slots.reduce((s, sl) => s + sl.questionCount, 0),
+        slots: c.slots,
+      }));
+      dispatch({ type: 'SET_CATEGORIES', categories: mapped });
     } catch (err) {
       console.error('Failed to load categories:', err);
     }
   }, []);
 
-  // Fetch a question from the API, excluding already-seen IDs
   const selectSlot = useCallback(async (slotKey: string) => {
     setLoading(true);
     try {
@@ -157,7 +224,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const question: Question = {
         id: String(apiQ.id),
         category: apiQ.category as any,
-        points: apiQ.points as 1 | 2 | 3,
+        points: apiQ.points,
         question: apiQ.question,
         options: apiQ.options,
         correctIndex: apiQ.correctIndex,
@@ -172,7 +239,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Reset seen IDs when game resets
+  // Reset seen IDs when a new game starts
   React.useEffect(() => {
     if (state.phase === 'playing' && Object.keys(state.answeredSlots).length === 0) {
       seenIdsRef.current = [];
@@ -180,7 +247,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [state.phase, state.answeredSlots]);
 
   return (
-    <GameContext.Provider value={{ state, dispatch, categories, loadCategories, selectSlot, loading }}>
+    <GameContext.Provider value={{ state, dispatch, loadCategories, selectSlot, loading }}>
       {children}
     </GameContext.Provider>
   );

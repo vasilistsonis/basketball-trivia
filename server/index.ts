@@ -59,6 +59,50 @@ app.get('/api/questions/:slotKey', async (req, res) => {
   res.status(404).json({ error: 'No questions found for this slot' });
 });
 
+// ── GET /api/quiz ──
+// Returns a batch of random questions from ALL categories
+// Query params: ?count=10&difficulty=mixed
+app.get('/api/quiz', async (req, res) => {
+  const count = Math.min(parseInt(req.query.count as string) || 10, 30);
+  const difficulty = (req.query.difficulty as string) || 'mixed';
+
+  const db = await getDb();
+
+  let query: string;
+  let params: any[];
+
+  if (difficulty === 'easy') {
+    query = `SELECT * FROM questions WHERE points = 1 ORDER BY RANDOM() LIMIT ?`;
+    params = [count];
+  } else if (difficulty === 'medium') {
+    query = `SELECT * FROM questions WHERE points = 2 ORDER BY RANDOM() LIMIT ?`;
+    params = [count];
+  } else if (difficulty === 'hard') {
+    query = `SELECT * FROM questions WHERE points = 3 ORDER BY RANDOM() LIMIT ?`;
+    params = [count];
+  } else {
+    // mixed: get a balanced mix from all categories
+    query = `SELECT * FROM questions ORDER BY RANDOM() LIMIT ?`;
+    params = [count];
+  }
+
+  const stmt = db.prepare(query);
+  stmt.bind(params);
+
+  const questions: any[] = [];
+  while (stmt.step()) {
+    questions.push(formatQuestion(stmt.getAsObject()));
+  }
+  stmt.free();
+
+  if (questions.length === 0) {
+    res.status(404).json({ error: 'No questions found' });
+    return;
+  }
+
+  res.json(questions);
+});
+
 // ── GET /api/categories ──
 app.get('/api/categories', async (_req, res) => {
   const db = await getDb();
@@ -113,24 +157,25 @@ function formatQuestion(row: any) {
 function buildCategoryMeta(rows: any[]) {
   const catMap: Record<string, any> = {};
 
-  const catConfig: Record<string, { label: string; icon: string; description: string }> = {
-    geography: { label: 'Geography', icon: '🌍', description: 'NBA & Euroleague arenas, cities & courts' },
-    history: { label: 'History', icon: '📜', description: 'NBA & Euroleague history & milestones' },
-    logo: { label: 'Logo', icon: '🎨', description: 'Guess the team based on the logo' },
-    'guess-whos-missing': { label: "Who's Missing?", icon: '🔍', description: 'Iconic starting 5s — who is missing?' },
-    'guess-the-player': { label: 'Guess the Player', icon: '🃏', description: 'Identify the player from his career CV' },
+  const catConfig: Record<string, { label: string; icon: string; description: string; color: string }> = {
+    geography: { label: 'Geography', icon: '🌍', description: 'NBA & Euroleague arenas, cities & courts', color: '#3b82f6' },
+    history: { label: 'History', icon: '📜', description: 'NBA & Euroleague history & milestones', color: '#f59e0b' },
+    logo: { label: 'Logo', icon: '🎨', description: 'Guess the team based on the logo', color: '#8b5cf6' },
+    'guess-whos-missing': { label: "Who's Missing?", icon: '🔍', description: 'Iconic starting 5s — who is missing?', color: '#10b981' },
+    'guess-the-player': { label: 'Guess the Player', icon: '🃏', description: 'Identify the player from his career CV', color: '#ef4444' },
   };
 
   for (const row of rows) {
     if (!catMap[row.category]) {
-      const config = catConfig[row.category] || { label: row.category, icon: '❓', description: '' };
-      catMap[row.category] = { id: row.category, ...config, slots: [] };
+      const config = catConfig[row.category] || { label: row.category, icon: '❓', description: '', color: '#6b7280' };
+      catMap[row.category] = { id: row.category, ...config, slots: [], questionCount: 0 };
     }
     catMap[row.category].slots.push({
       points: row.points,
       key: row.slot_key,
       questionCount: row.question_count,
     });
+    catMap[row.category].questionCount += row.question_count;
   }
 
   // Return in fixed order

@@ -1,6 +1,5 @@
 import { useGame } from './context/GameContext';
-import Login from './components/Login';
-import Lobby from './components/Lobby';
+import Home from './components/Home';
 import TeamSetup from './components/TeamSetup';
 import GameBoard from './components/GameBoard';
 import QuestionCard from './components/QuestionCard';
@@ -10,10 +9,8 @@ export default function App() {
   const { state } = useGame();
 
   switch (state.phase) {
-    case 'login':
-      return <Login />;
-    case 'lobby':
-      return <Lobby />;
+    case 'home':
+      return <Home />;
     case 'team-setup':
       return <TeamSetup />;
     case 'playing':
@@ -28,6 +25,6 @@ export default function App() {
     case 'game-over':
       return <GameOver />;
     default:
-      return <Login />;
+      return <Home />;
   }
 }

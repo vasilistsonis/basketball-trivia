@@ -16,6 +16,8 @@ export interface ApiCategory {
   label: string;
   icon: string;
   description: string;
+  color: string;
+  questionCount: number;
   slots: { points: number; key: string; questionCount: number }[];
 }
 
@@ -23,6 +25,15 @@ export async function fetchQuestion(slotKey: string, excludeIds: number[]): Prom
   const exclude = excludeIds.length > 0 ? `?exclude=${excludeIds.join(',')}` : '';
   const res = await fetch(`${API_BASE}/questions/${slotKey}${exclude}`);
   if (!res.ok) throw new Error(`Failed to fetch question for ${slotKey}`);
+  return res.json();
+}
+
+export async function fetchQuizQuestions(
+  count: number = 10,
+  difficulty: string = 'mixed'
+): Promise<ApiQuestion[]> {
+  const res = await fetch(`${API_BASE}/quiz?count=${count}&difficulty=${difficulty}`);
+  if (!res.ok) throw new Error('Failed to fetch quiz questions');
   return res.json();
 }
 
