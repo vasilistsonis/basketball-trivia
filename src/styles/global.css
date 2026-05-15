@@ -562,7 +562,7 @@ body {
 
 .board-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  grid-template-columns: repeat(var(--cols, 5), 1fr);
   gap: 6px;
   padding: 4px 14px 14px;
 }

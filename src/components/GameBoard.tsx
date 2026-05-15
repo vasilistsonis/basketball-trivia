@@ -58,7 +58,7 @@ export default function GameBoard() {
         {loading && <div className="loading-indicator">Loading question...</div>}
 
         {/* Jeopardy-style board */}
-        <div className="board-grid">
+        <div className="board-grid" style={{ '--cols': state.categories.length } as React.CSSProperties}>
           {state.categories.map((cat) => {
             const CatIcon = CATEGORY_ICONS[cat.id];
             return (
