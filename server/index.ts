@@ -1,12 +1,43 @@
 import express from 'express';
 import cors from 'cors';
-import { initDb, getDb } from './db.js';
+import {
+  getCategorySlotCounts,
+  getQuestionCount,
+  getQuizQuestions,
+  getRandomQuestionBySlot,
+  getStatsByCategory,
+  initDb,
+} from './db.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
+
+// ── GET /api/health ──
+app.get('/api/health', async (_req, res) => {
+  try {
+    const questionCount = await getQuestionCount();
+    res.json({
+      ok: true,
+      database: {
+        provider: 'supabase',
+        connected: true,
+        questionCount,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      database: {
+        provider: 'supabase',
+        connected: false,
+      },
+      error: error instanceof Error ? error.message : 'Unknown database error',
+    });
+  }
+});
 
 // ── GET /api/questions/:slotKey ──
 // Returns a random question for the given slot, excluding already-seen IDs
@@ -19,44 +50,17 @@ app.get('/api/questions/:slotKey', async (req, res) => {
     .map((s) => parseInt(s, 10))
     .filter((n) => !isNaN(n));
 
-  const db = await getDb();
+  try {
+    const row = await getRandomQuestionBySlot(slotKey, excludeIds);
+    if (!row) {
+      res.status(404).json({ error: 'No questions found for this slot' });
+      return;
+    }
 
-  let query: string;
-  let params: any[];
-
-  if (excludeIds.length > 0) {
-    const placeholders = excludeIds.map(() => '?').join(',');
-    query = `SELECT * FROM questions WHERE slot_key = ? AND id NOT IN (${placeholders}) ORDER BY RANDOM() LIMIT 1`;
-    params = [slotKey, ...excludeIds];
-  } else {
-    query = `SELECT * FROM questions WHERE slot_key = ? ORDER BY RANDOM() LIMIT 1`;
-    params = [slotKey];
-  }
-
-  const stmt = db.prepare(query);
-  stmt.bind(params);
-
-  if (stmt.step()) {
-    const row = stmt.getAsObject();
-    stmt.free();
     res.json(formatQuestion(row));
-    return;
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to fetch question' });
   }
-  stmt.free();
-
-  // If all questions seen, reset and pick any
-  const fallbackStmt = db.prepare(`SELECT * FROM questions WHERE slot_key = ? ORDER BY RANDOM() LIMIT 1`);
-  fallbackStmt.bind([slotKey]);
-
-  if (fallbackStmt.step()) {
-    const row = fallbackStmt.getAsObject();
-    fallbackStmt.free();
-    res.json(formatQuestion(row));
-    return;
-  }
-  fallbackStmt.free();
-
-  res.status(404).json({ error: 'No questions found for this slot' });
 });
 
 // ── GET /api/quiz ──
@@ -66,79 +70,40 @@ app.get('/api/quiz', async (req, res) => {
   const count = Math.min(parseInt(req.query.count as string) || 10, 30);
   const difficulty = (req.query.difficulty as string) || 'mixed';
 
-  const db = await getDb();
+  try {
+    const questions = await getQuizQuestions(count, difficulty);
 
-  let query: string;
-  let params: any[];
+    if (questions.length === 0) {
+      res.status(404).json({ error: 'No questions found' });
+      return;
+    }
 
-  if (difficulty === 'easy') {
-    query = `SELECT * FROM questions WHERE points = 1 ORDER BY RANDOM() LIMIT ?`;
-    params = [count];
-  } else if (difficulty === 'medium') {
-    query = `SELECT * FROM questions WHERE points = 2 ORDER BY RANDOM() LIMIT ?`;
-    params = [count];
-  } else if (difficulty === 'hard') {
-    query = `SELECT * FROM questions WHERE points = 3 ORDER BY RANDOM() LIMIT ?`;
-    params = [count];
-  } else {
-    // mixed: get a balanced mix from all categories
-    query = `SELECT * FROM questions ORDER BY RANDOM() LIMIT ?`;
-    params = [count];
+    res.json(questions.map(formatQuestion));
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to fetch quiz questions' });
   }
-
-  const stmt = db.prepare(query);
-  stmt.bind(params);
-
-  const questions: any[] = [];
-  while (stmt.step()) {
-    questions.push(formatQuestion(stmt.getAsObject()));
-  }
-  stmt.free();
-
-  if (questions.length === 0) {
-    res.status(404).json({ error: 'No questions found' });
-    return;
-  }
-
-  res.json(questions);
 });
 
 // ── GET /api/categories ──
 app.get('/api/categories', async (_req, res) => {
-  const db = await getDb();
-
-  const rows: any[] = [];
-  const stmt = db.prepare(
-    `SELECT category, slot_key, points, COUNT(*) as question_count 
-     FROM questions GROUP BY slot_key ORDER BY category, points`
-  );
-
-  while (stmt.step()) {
-    rows.push(stmt.getAsObject());
+  try {
+    const rows = await getCategorySlotCounts();
+    const categories = buildCategoryMeta(rows);
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to fetch categories' });
   }
-  stmt.free();
-
-  const categories = buildCategoryMeta(rows);
-  res.json(categories);
 });
 
 // ── GET /api/stats ──
 app.get('/api/stats', async (_req, res) => {
-  const db = await getDb();
-
-  const totalStmt = db.prepare(`SELECT COUNT(*) as total FROM questions`);
-  totalStmt.step();
-  const totalRow = totalStmt.getAsObject() as any;
-  totalStmt.free();
-
-  const catStmt = db.prepare(`SELECT category, COUNT(*) as count FROM questions GROUP BY category`);
-  const byCategory: any[] = [];
-  while (catStmt.step()) {
-    byCategory.push(catStmt.getAsObject());
+  try {
+    const total = await getQuestionCount();
+    const byCategory = await getStatsByCategory();
+    res.json({ total, byCategory });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to fetch stats' });
   }
-  catStmt.free();
-
-  res.json({ total: totalRow.total, byCategory });
 });
 
 function formatQuestion(row: any) {
@@ -186,9 +151,14 @@ function buildCategoryMeta(rows: any[]) {
 // Start server after DB is ready
 async function start() {
   await initDb();
+  const questionCount = await getQuestionCount();
   app.listen(PORT, () => {
     console.log(`🏀 Basketball Trivia API running on http://localhost:${PORT}`);
+    console.log(`Supabase database connected with ${questionCount} questions`);
   });
 }
 
-start();
+start().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

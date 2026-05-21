@@ -1,4 +1,4 @@
-import { initDb, getDb, saveDb } from './db.js';
+import { replaceQuestions } from './db.js';
 
 interface QuestionRow {
   category: string;
@@ -184,43 +184,27 @@ const questions: QuestionRow[] = [
   { category: 'guess-the-player', slot_key: 'player-2', points: 3, question: 'CV: NBA: Orlando, Houston, LA Lakers, Miami, Boston. 4× Champ, 3× Finals MVP. "Shaq."', option_a: 'Shaquille O\'Neal', option_b: 'Dwight Howard', option_c: 'Alonzo Mourning', option_d: 'Hakeem Olajuwon', correct_index: 0 },
 ];
 
-async function seed() {
-  await initDb();
-  const db = await getDb();
+export async function seedQuestions(log = true) {
+  await replaceQuestions(questions);
+  const total = questions.length;
 
-  // Clear existing
-  db.run('DELETE FROM questions');
+  if (!log) return total;
 
-  const stmt = db.prepare(`
-    INSERT INTO questions (category, slot_key, points, question, option_a, option_b, option_c, option_d, correct_index)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+  console.log(`✅ Seeded Supabase database with ${total} questions`);
 
-  for (const q of questions) {
-    stmt.bind([q.category, q.slot_key, q.points, q.question, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_index]);
-    stmt.step();
-    stmt.reset();
-  }
-  stmt.free();
+  const breakdown = questions.reduce<Record<string, number>>((counts, question) => {
+    counts[question.slot_key] = (counts[question.slot_key] || 0) + 1;
+    return counts;
+  }, {});
 
-  // Save to disk
-  saveDb();
-
-  // Show stats
-  const countStmt = db.prepare('SELECT COUNT(*) as total FROM questions');
-  countStmt.step();
-  const total = (countStmt.getAsObject() as any).total;
-  countStmt.free();
-
-  console.log(`✅ Seeded database with ${total} questions`);
-
-  const breakdownStmt = db.prepare('SELECT slot_key, COUNT(*) as cnt FROM questions GROUP BY slot_key ORDER BY slot_key');
   console.log('\n📊 Breakdown by slot:');
-  while (breakdownStmt.step()) {
-    const row = breakdownStmt.getAsObject() as any;
-    console.log(`   ${row.slot_key}: ${row.cnt} questions`);
+  for (const [slotKey, count] of Object.entries(breakdown).sort(([a], [b]) => a.localeCompare(b))) {
+    console.log(`   ${slotKey}: ${count} questions`);
   }
-  breakdownStmt.free();
+
+  return total;
 }
 
-seed().catch(console.error);
+if (process.argv[1]?.includes('seed.')) {
+  seedQuestions().catch(console.error);
+}
