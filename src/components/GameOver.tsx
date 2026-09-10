@@ -1,135 +1,58 @@
+import { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { Wordmark, IconArrow, CourtArc } from './Icons';
+import { Wordmark, IconArrow, CourtArc, IconTrophy } from './Icons';
+import InfoSheet from './InfoSheet';
+import { shareResult, tapFeedback, setStatusBar } from '../lib/native';
 
 export default function GameOver() {
   const { state, dispatch } = useGame();
-  const [team1, team2] = state.teams;
-
-  const winner =
-    team1.score > team2.score ? team1 : team2.score > team1.score ? team2 : null;
-  const winnerIdx = winner === team1 ? 0 : winner === team2 ? 1 : -1;
-  const margin = Math.abs(team1.score - team2.score);
-
-  // Count correct answers per team
+  const [privacy, setPrivacy] = useState(false);
+  const [shareStatus, setShareStatus] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const [first, second] = state.teams;
+  const winnerIndex = first.score === second.score ? -1 : first.score > second.score ? 0 : 1;
+  const winner = winnerIndex === 0 ? first : winnerIndex === 1 ? second : null;
   const answered = Object.values(state.answeredSlots);
-  const totalPerTeam = [
-    answered.filter((a) => a.answeredByTeam === 0).length,
-    answered.filter((a) => a.answeredByTeam === 1).length,
-  ];
-  const correctPerTeam = [
-    answered.filter((a) => a.answeredByTeam === 0 && a.correct).length,
-    answered.filter((a) => a.answeredByTeam === 1 && a.correct).length,
-  ];
-  const totalCorrect = correctPerTeam[0] + correctPerTeam[1];
-  const totalWrong = answered.length - totalCorrect;
+  const correctCount = answered.filter(answer => answer.correct).length;
+  const share = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const result = await shareResult(`Hoops Trivia · Final score\n${first.name} ${first.score} — ${second.score} ${second.name}\n${winner ? winner.name + ' takes the win!' : 'A dead heat!'}\n${correctCount} of ${answered.length} questions correct. Think you can do better?`);
+      setShareStatus(result === 'copied' ? 'Final score copied. Paste it to share.' : result === 'shared' ? 'Share sheet closed.' : '');
+    } catch { setShareStatus('Sharing is unavailable right now. Your final score is still here.'); }
+    finally { setSharing(false); setStatusBar(true); }
+  };
 
-  return (
-    <div className="ht-app go-shell">
-      <div className="ht-paper-grain" />
-      <div className="ht-shell">
-        {/* Top bar */}
-        <div className="ht-topbar">
-          <Wordmark light />
-          <div className="ht-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>
-            Final · {answered.length}/{state.totalSlots}
-          </div>
-        </div>
-
-        {/* Title & winner */}
-        <div className="go-head">
-          <CourtArc
-            style={{
-              position: 'absolute', top: -100, right: -120, width: 300, height: 300,
-            }}
-            stroke="#fff"
-            opacity={0.15}
-          />
-          <div className="go-kicker">FINAL BUZZER</div>
-          {winner ? (
-            <>
-              <h1 className="go-title">
-                {winner.name.split(' ')[0]}<br />Take It.
-              </h1>
-              <div className="go-winner-name">+ {margin} PT Margin</div>
-            </>
-          ) : (
-            <>
-              <h1 className="go-title">It's a<br />Tie!</h1>
-              <div className="go-winner-name">Dead even.</div>
-            </>
-          )}
-        </div>
-
-        {/* Final scores table */}
-        <div className="go-final">
-          {[team1, team2].map((team, idx) => {
-            const pct = totalPerTeam[idx] > 0
-              ? Math.round((correctPerTeam[idx] / totalPerTeam[idx]) * 100)
-              : 0;
-            return (
-              <div
-                key={idx}
-                className={`go-final-row ${winnerIdx === idx ? 'winner' : ''}`}
-                style={{ '--team-color': team.color } as React.CSSProperties}
-              >
-                <div className="go-final-jersey">{idx + 1}</div>
-                <div>
-                  <div className="go-final-name">{team.name}</div>
-                  <div className="go-final-meta">
-                    {correctPerTeam[idx]} / {totalPerTeam[idx]} correct · {pct}%
-                  </div>
-                </div>
-                <div className="go-final-score">{team.score}</div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Stats row */}
-        <div className="go-stats">
-          <div className="go-stat">
-            <div className="go-stat-num">{totalCorrect}</div>
-            <div className="go-stat-lbl">Correct</div>
-          </div>
-          <div className="go-stat">
-            <div className="go-stat-num">{totalWrong}</div>
-            <div className="go-stat-lbl">Misses</div>
-          </div>
-          <div className="go-stat">
-            <div className="go-stat-num">
-              {state.powerUps.reduce((s, pu) =>
-                s + (pu.usedDouble ? 1 : 0) + (pu.usedFiftyFifty ? 1 : 0), 0
-              )}
-            </div>
-            <div className="go-stat-lbl">Power-ups</div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="go-actions">
-          <button
-            className="ht-btn-primary"
-            onClick={() => dispatch({ type: 'START_SETUP' })}
-          >
-            <span>Run It Back</span>
-            <span className="arrow"><IconArrow color="#fff" /></span>
-          </button>
-          <button
-            className="ht-btn-ghost"
-            onClick={() => dispatch({ type: 'GO_HOME' })}
-          >
-            Back to Home
-          </button>
-          <a
-            className="ht-privacy-link is-light"
-            href="https://hoopstrivia.com/privacy.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Privacy Policy
-          </a>
-        </div>
+  return <main className="ht-app go-shell">
+    <div className="ht-paper-grain" aria-hidden="true" />
+    <div className="ht-shell">
+      <header className="ht-topbar"><Wordmark light /><span className="ht-mono">Full time / {answered.length} played</span></header>
+      <section className="go-head">
+        <CourtArc style={{ position: 'absolute', top: -110, right: -150, width: 440, height: 440 }} stroke="#fff" opacity={0.13} />
+        <div className="go-kicker"><IconTrophy size={20} /> Final buzzer</div>
+        <h1 className="ht-display go-title" data-screen-title tabIndex={-1}>{winner ? <>Nothing<br />but <em>net.</em></> : <>A dead<br /><em>heat.</em></>}</h1>
+        <p className="go-winner-name">{winner ? <><strong>{winner.name}</strong> takes it.</> : 'All square. Run it back?'}</p>
+        <p className="go-margin">{winner ? `A ${Math.abs(first.score - second.score)}-point win. Bragging rights secured.` : 'Two teams. The same score. Respect.'}</p>
+      </section>
+      <section className="go-final" aria-label="Final scores">{state.teams.map((team, index) => {
+        const attempts = answered.filter(answer => answer.answeredByTeam === index);
+        const correct = attempts.filter(answer => answer.correct).length;
+        return <div key={index} className={`go-final-row ${index === winnerIndex ? 'winner' : ''}`} style={{ '--team-color': team.color } as React.CSSProperties}>
+          <span className="go-final-jersey">{index + 1}</span><div className="go-final-team"><h2>{team.name}</h2><p>{correct}/{attempts.length} correct {index === winnerIndex && <span>· Winner</span>}</p></div><strong className="go-final-score">{team.score}</strong>
+        </div>;
+      })}</section>
+      <section className="go-stats" aria-label="Match statistics">
+        <div><strong>{correctCount}</strong><span>Correct</span></div><div><strong>{answered.length - correctCount}</strong><span>Misses</span></div><div><strong>{state.powerUps.reduce((sum, pu) => sum + Number(pu.usedDouble) + Number(pu.usedFiftyFifty), 0)}</strong><span>Power-ups</span></div>
+      </section>
+      <div className="go-actions">
+        <button className="ht-btn-primary is-orange" onClick={() => { tapFeedback(); dispatch({ type: 'START_SETUP' }); }}><span>Run It Back</span><IconArrow /></button>
+        <button className="ht-btn-ghost" onClick={share} disabled={sharing}>{sharing ? 'Opening share…' : 'Share Result'}</button>
+        <p className="share-status" role="status">{shareStatus}</p>
+        <button className="ht-text-button" onClick={() => dispatch({ type: 'GO_HOME' })}>Back to Home</button>
+        <button className="ht-privacy-link" onClick={() => setPrivacy(true)}>Privacy</button>
       </div>
     </div>
-  );
+    {privacy && <InfoSheet view="privacy" onClose={() => setPrivacy(false)} />}
+  </main>;
 }

@@ -7,16 +7,33 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "seed": "tsx server/seed.ts"
+    "seed": "tsx server/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:unit",
+    "test:unit": "tsx --test tests/*.test.ts",
+    "test:ui": "playwright test",
+    "ios:assets": "node scripts/ios-assets.mjs",
+    "ios:sync": "npm run build && cap sync ios && npm run ios:check",
+    "ios:check": "node scripts/ios-check.mjs",
+    "ios:open": "cap open ios",
+    "capacitor:sync:after": "node scripts/ios-normalize.mjs",
+    "capacitor:update:after": "node scripts/ios-normalize.mjs"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.4.1",
+    "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.4.1",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.3",
+    "@fontsource/anton": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.1",
+    "@playwright/test": "^1.63.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^6.0.3",
@@ -26,5 +43,8 @@
   },
   "overrides": {
     "esbuild": "^0.28.1"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

@@ -22,6 +22,8 @@ export interface ApiCategorySlot {
   questionCount: number;
 }
 
+export type GameCategory = CategoryMeta & { slots: ApiCategorySlot[] };
+
 export interface Question {
   id: string;
   category: CategoryId;
@@ -47,8 +49,13 @@ export type GamePhase =
 
 export interface AnsweredSlot {
   slotKey: string;
-  answeredByTeam: number; // 0 or 1
+  answeredByTeam: 0 | 1;
   correct: boolean;
+  questionId: string;
+  selectedIndex: number;
+  correctIndex: number;
+  pointsAwarded: number;
+  powerUp: 'double' | 'fifty-fifty' | null;
 }
 
 /** Per-team one-time-use power-ups (one of each per game) */
@@ -59,7 +66,9 @@ export interface PowerUps {
 
 export interface GameState {
   phase: GamePhase;
-  categories: (CategoryMeta & { slots: ApiCategorySlot[] })[];
+  categories: GameCategory[];
+  /** Identifies this match so a late request cannot open a question in a new match. */
+  gameId: string | null;
   teams: [Team, Team];
   currentTeamIndex: 0 | 1;
   answeredSlots: Record<string, AnsweredSlot>;
@@ -72,4 +81,20 @@ export interface GameState {
   activeDouble: boolean;
   /** Indices of options eliminated by 50/50 for the current question */
   fiftyFiftyEliminated: number[];
+  /** Selection and reveal are saved with the match, before rendering the answer. */
+  selectedAnswerIndex: number | null;
+  answerRevealed: boolean;
+  seenQuestionIds: string[];
+}
+
+/** Negative IDs belong to the bundled bank; positive IDs come from Supabase. */
+export interface QuestionBankEntry extends Omit<Question, 'id'> {
+  id: number;
+  slotKey: string;
+}
+
+export interface SavedGame {
+  version: 1;
+  savedAt: string;
+  state: GameState;
 }

@@ -1,212 +1,72 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGame } from '../context/GameContext';
-import {
-  IconArrow,
-  IconBolt,
-  IconTarget,
-  IconCheck,
-  IconCross,
-  CATEGORY_ICONS,
-} from './Icons';
+import { IconArrow, IconBolt, IconTarget, IconCheck, IconCross, CATEGORY_ICONS } from './Icons';
+import Modal from './Modal';
+import { answerFeedback, tapFeedback } from '../lib/native';
 
 export default function QuestionCard() {
   const { state, dispatch } = useGame();
-  const [selected, setSelected] = useState<number | null>(null);
-  const [revealed, setRevealed] = useState(false);
-
+  const [imageFailed, setImageFailed] = useState(false);
+  const resultRef = useRef<HTMLDivElement>(null);
   const q = state.currentQuestion;
+  const selected = state.selectedAnswerIndex;
+  const revealed = state.answerRevealed;
+  useEffect(() => { if (revealed) resultRef.current?.focus({ preventScroll: true }); }, [revealed]);
+  useEffect(() => { setImageFailed(false); }, [q?.id]);
   if (!q) return null;
-
   const currentTeam = state.teams[state.currentTeamIndex];
   const otherTeam = state.teams[state.currentTeamIndex === 0 ? 1 : 0];
   const currentPU = state.powerUps[state.currentTeamIndex];
-
-  // Compute effective points
-  let displayPoints = q.points;
-  let pointsSuffix = 'PTS';
-  if (state.activeDouble) {
-    displayPoints = q.points * 2;
-    pointsSuffix = '2× PT';
-  } else if (state.fiftyFiftyEliminated.length > 0) {
-    displayPoints = Math.ceil(q.points * 0.5);
-    pointsSuffix = '50/50';
-  }
-
-  // Find category info
-  const catMeta = state.categories.find((c) => c.id === q.category);
+  const displayPoints = state.activeDouble ? q.points * 2 : state.fiftyFiftyEliminated.length ? Math.ceil(q.points / 2) : q.points;
+  const cat = state.categories.find(c => c.id === q.category);
   const CatIcon = CATEGORY_ICONS[q.category];
+  const canDouble = !currentPU.usedDouble && !state.activeDouble && !state.fiftyFiftyEliminated.length && !revealed;
+  const canFifty = !currentPU.usedFiftyFifty && !state.fiftyFiftyEliminated.length && !state.activeDouble && !revealed;
+  const correct = selected === q.correctIndex;
+  const lastQuestion = revealed && Object.keys(state.answeredSlots).length >= state.totalSlots;
 
-  const handleSelect = (idx: number) => {
-    if (revealed || state.fiftyFiftyEliminated.includes(idx)) return;
-    setSelected(idx);
-  };
-
-  const handleConfirm = () => {
-    if (selected === null) return;
-    setRevealed(true);
-  };
-
-  const handleContinue = () => {
-    if (selected === null) return;
-    dispatch({ type: 'ANSWER_QUESTION', selectedIndex: selected });
-    setSelected(null);
-    setRevealed(false);
-  };
-
-  const canUseDouble =
-    !currentPU.usedDouble &&
-    !state.activeDouble &&
-    state.fiftyFiftyEliminated.length === 0 &&
-    !revealed;
-  const canUseFifty =
-    !currentPU.usedFiftyFifty &&
-    state.fiftyFiftyEliminated.length === 0 &&
-    !state.activeDouble &&
-    !revealed;
-
-  const isCorrect = selected !== null && selected === q.correctIndex;
-
-  return (
-    <div className="q-overlay">
-      <div
-        className="q-sheet"
-        style={{ '--cat-color': catMeta?.color || '#E85D1E' } as React.CSSProperties}
-      >
-        <div className="q-handle" />
-
-        {/* Header: category + points */}
-        <div className="q-head">
-          <div className="q-cat">
-            <span className="q-cat-stripe" />
-            {CatIcon && <CatIcon size={14} />}
-            <span className="q-cat-name">{catMeta?.label || q.category}</span>
-          </div>
-          <div className={`q-points ${state.activeDouble ? 'is-2x' : ''}`}>
-            {displayPoints}
-            <small>{pointsSuffix}</small>
-          </div>
-        </div>
-
-        {/* Team prompt */}
-        <div className="ht-mono" style={{ marginBottom: 2 }}>
-          {currentTeam.name} · {revealed ? 'Result' : 'Lock in your answer'}
-        </div>
-
-        {/* Question image */}
-        {q.imageUrl && (
-          <div className="q-image-wrap">
-            <img src={q.imageUrl} alt="Question image" className="q-image" />
-          </div>
-        )}
-
-        {/* Question text */}
-        <p className="q-text">{q.question}</p>
-
-        {/* Options */}
-        <div className="q-options">
-          {q.options.map((opt, idx) => {
-            const eliminated = state.fiftyFiftyEliminated.includes(idx);
-            let cls = 'q-opt';
-            let mark: React.ReactNode = null;
-
-            if (eliminated) {
-              cls += ' is-elim';
-            } else if (revealed) {
-              if (idx === q.correctIndex) {
-                cls += ' is-correct';
-                mark = <IconCheck size={16} color="#fff" />;
-              } else if (idx === selected) {
-                cls += ' is-wrong';
-                mark = <IconCross size={14} color="var(--crimson)" />;
-              } else {
-                cls += ' is-wrong';
-              }
-            } else if (idx === selected) {
-              cls += ' is-selected';
-            }
-
-            return (
-              <button
-                key={idx}
-                className={cls}
-                onClick={() => handleSelect(idx)}
-                disabled={eliminated || revealed}
-              >
-                <span className="q-opt-letter">{String.fromCharCode(65 + idx)}</span>
-                <span className="q-opt-text">{opt}</span>
-                {mark && <span className="q-opt-mark">{mark}</span>}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Power-ups (before reveal) */}
-        {!revealed && (
-          <div className="q-powerups">
-            <button
-              className={`q-pu ${state.activeDouble ? 'used' : ''}`}
-              disabled={!canUseDouble}
-              onClick={() => dispatch({ type: 'USE_DOUBLE' })}
-            >
-              <span className="icon"><IconBolt size={14} color="#F2EEE5" /></span>
-              <span>
-                <div className="lbl">Double Up</div>
-                <div className="sub">2× the points</div>
-              </span>
-            </button>
-            <button
-              className={`q-pu ${state.fiftyFiftyEliminated.length > 0 ? 'used' : ''}`}
-              disabled={!canUseFifty}
-              onClick={() => dispatch({ type: 'USE_FIFTY_FIFTY' })}
-            >
-              <span className="icon"><IconTarget size={14} color="#F2EEE5" /></span>
-              <span>
-                <div className="lbl">Fifty Fifty</div>
-                <div className="sub">Drop two wrong</div>
-              </span>
-            </button>
-          </div>
-        )}
-
-        {/* Result / Actions */}
-        {revealed ? (
-          <>
-            <div className={`q-result ${isCorrect ? 'correct' : 'wrong'}`}>
-              {isCorrect
-                ? <IconCheck size={20} color="#fff" />
-                : <IconCross size={20} color="#F2EEE5" />
-              }
-              <div className="copy">
-                {isCorrect ? 'Bucket!' : 'Wrong call.'}
-                <small>
-                  {isCorrect
-                    ? `+${displayPoints} PT`
-                    : `+0 PT · Answer was ${q.options[q.correctIndex]}`
-                  }
-                </small>
-              </div>
-            </div>
-            <button className="ht-btn-primary" onClick={handleContinue}>
-              <span>Next Up · {otherTeam.name}</span>
-              <span className="arrow"><IconArrow /></span>
-            </button>
-          </>
-        ) : (
-          <button
-            className="ht-btn-primary is-orange"
-            disabled={selected === null}
-            onClick={handleConfirm}
-          >
-            <span>
-              {selected !== null
-                ? `Lock In ${String.fromCharCode(65 + selected)}`
-                : 'Select an Answer'
-              }
-            </span>
-            <span className="arrow"><IconArrow color="#fff" /></span>
-          </button>
-        )}
-      </div>
+  return <Modal title={`${cat?.label ?? 'Question'} · ${displayPoints} ${displayPoints === 1 ? 'point' : 'points'}`} className="q-sheet">
+    <div className="q-head" style={{ '--cat-color': cat?.color ?? '#E85D1E' } as React.CSSProperties}>
+      <span className="q-cat-icon">{CatIcon && <CatIcon size={20} />}</span>
+      <span className="q-team"><strong>{currentTeam.name}</strong><span className="ht-mono">{revealed ? 'The call is in' : 'Make your shot'}</span></span>
+      <span className={`q-points ${state.activeDouble ? 'is-2x' : ''}`}>{displayPoints}<small>{state.activeDouble ? 'Double up' : state.fiftyFiftyEliminated.length ? 'Fifty fifty' : 'Points'}</small></span>
     </div>
-  );
+    {q.imageUrl && !imageFailed && <div className="q-image-wrap"><img className="q-image" src={q.imageUrl} alt="Basketball visual clue for this question" onError={() => setImageFailed(true)} /></div>}
+    {imageFailed && <p className="ht-notice" role="status">The visual clue couldn’t load. Save your game and reconnect to try it again.</p>}
+    <p className="q-text" id="question-text">{q.question}</p>
+    <div className="q-options" role="group" aria-labelledby="question-text">
+      {q.options.map((option, index) => {
+        const eliminated = state.fiftyFiftyEliminated.includes(index);
+        const cls = eliminated ? 'is-elim' : revealed ? index === q.correctIndex ? 'is-correct' : index === selected ? 'is-wrong' : 'is-muted' : index === selected ? 'is-selected' : '';
+        return <button className={`q-opt ${cls}`} key={index} disabled={eliminated || revealed} aria-pressed={selected === index} aria-label={`${String.fromCharCode(65 + index)}. ${option}${eliminated ? ', eliminated' : revealed && index === q.correctIndex ? ', correct answer' : ''}`} onClick={() => { tapFeedback(); dispatch({ type: 'SELECT_ANSWER', selectedIndex: index }); }}>
+          <span className="q-opt-letter">{String.fromCharCode(65 + index)}</span><span className="q-opt-text">{option}</span>
+          {revealed && index === q.correctIndex && <IconCheck size={20} />}
+          {revealed && index === selected && !correct && <IconCross size={18} />}
+          {!revealed && index === selected && <span className="selection-dot" />}
+        </button>;
+      })}
+    </div>
+    {!revealed && <>
+      <div className="q-powerups">
+        <button className={`q-pu ${state.activeDouble ? 'is-active' : ''}`} disabled={!canDouble} onClick={() => { tapFeedback(); dispatch({ type: 'USE_DOUBLE' }); }} aria-label="Double Up: twice the points">
+          <IconBolt size={21} /><span><strong>Double Up</strong><small>{state.activeDouble ? 'Active · 2× points' : currentPU.usedDouble ? 'Already used' : '2× the points'}</small></span>
+        </button>
+        <button className={`q-pu ${state.fiftyFiftyEliminated.length ? 'is-active' : ''}`} disabled={!canFifty} onClick={() => { tapFeedback(); dispatch({ type: 'USE_FIFTY_FIFTY' }); }} aria-label="Fifty Fifty: remove two wrong answers for half points, rounded up">
+          <IconTarget size={21} /><span><strong>Fifty Fifty</strong><small>{state.fiftyFiftyEliminated.length ? 'Active · half points' : currentPU.usedFiftyFifty ? 'Already used' : '2 answers · half points'}</small></span>
+        </button>
+      </div>
+      <p className="q-powerup-note">One of each per team. Half points round up.</p>
+    </>}
+    <div className="q-actions">
+      {revealed ? <>
+        <div className={`q-result ${correct ? 'correct' : 'wrong'}`} role="status" tabIndex={-1} ref={resultRef}>
+          {correct ? <IconCheck size={24} /> : <IconCross size={20} />}
+          <span><strong>{correct ? 'Bucket!' : 'Off the rim.'}</strong><small>{correct ? `+${displayPoints} ${displayPoints === 1 ? 'point' : 'points'} for ${currentTeam.name}` : `Correct answer: ${q.options[q.correctIndex]}`}</small></span>
+        </div>
+        <button className="ht-btn-primary" onClick={() => { tapFeedback(); dispatch({ type: 'CONTINUE_QUESTION' }); }}><span>{lastQuestion ? 'View Results' : 'Next Turn'}</span><IconArrow /></button>
+        {!lastQuestion && <p className="q-next-team">Pass the phone to <strong>{otherTeam.name}</strong></p>}
+      </> : <button className="ht-btn-primary is-orange" disabled={selected === null} onClick={() => { if (selected !== null) { answerFeedback(selected === q.correctIndex); dispatch({ type: 'REVEAL_ANSWER' }); } }}><span>{selected === null ? 'Select an Answer' : `Lock In ${String.fromCharCode(65 + selected)}`}</span><IconArrow /></button>}
+      <button className="ht-text-button q-save" onClick={() => dispatch({ type: 'GO_HOME' })}>Save & Exit</button>
+    </div>
+  </Modal>;
 }

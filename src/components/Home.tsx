@@ -1,127 +1,70 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { CategoryMeta } from '../types';
 import { Wordmark, IconArrow, CourtArc, CATEGORY_ICONS } from './Icons';
+import InfoSheet from './InfoSheet';
+import { tapFeedback } from '../lib/native';
 
 export default function Home() {
-  const { state, dispatch, loadCategories, loading, error } = useGame();
-
-  useEffect(() => {
-    if (state.categories.length === 0) {
-      loadCategories();
-    }
-  }, [state.categories.length, loadCategories]);
-
-  const handleStart = () => {
-    dispatch({ type: 'START_SETUP' });
-  };
-
-  const totalQ = state.categories.reduce((s, c) => s + c.questionCount, 0);
+  const { state, dispatch, loadCategories, loading, error, savedGame, resumeGame, storageWarning } = useGame();
+  const [info, setInfo] = useState<'rules' | 'privacy' | 'category' | null>(null);
+  const [category, setCategory] = useState<CategoryMeta>();
+  useEffect(() => { void loadCategories(); }, [loadCategories]);
+  const totalQ = state.categories.reduce((sum, cat) => sum + cat.questionCount, 0);
+  const savedGameFinished = savedGame?.state.phase === 'game-over';
 
   return (
-    <div className="ht-app">
-      <div className="ht-paper-grain" />
+    <main className="ht-app home-screen">
+      <div className="ht-paper-grain" aria-hidden="true" />
       <div className="ht-shell">
-        {/* Top bar */}
-        <div className="ht-topbar">
+        <header className="ht-topbar">
           <Wordmark />
-        </div>
-
-        {/* Hero section */}
-        <div className="home-hero">
-          <CourtArc style={{
-            position: 'absolute', top: -120, right: -140, width: 360, height: 360, opacity: 1
-          }} opacity={0.09} />
-
-          <div className="home-tagline">
-            <span className="ht-mono">Season 26 · Vol. 01</span>
-            <span style={{ flex: 1, height: 1, background: 'rgba(17,17,17,0.18)' }} />
-          </div>
-
-          <h1 className="ht-display home-title">
-            Drop<br />
-            <em>Dimes.</em>
-          </h1>
-
-          <p className="home-sub">
-            Two teams. Five categories. One scoreboard. Pick your slots and prove you watch every game.
-          </p>
-
+          <button className="ht-text-button" onClick={() => setInfo('rules')}>How to play <span aria-hidden="true">↗</span></button>
+        </header>
+        <section className="home-hero">
+          <CourtArc style={{ position: 'absolute', top: -72, right: -170, width: 440, height: 440 }} opacity={0.13} />
+          <div className="home-tagline"><span className="ht-mono">The basketball trivia club</span><span className="home-rule" /></div>
+          <h1 className="ht-display home-title" data-screen-title tabIndex={-1}>Drop<br /><em>Dimes.</em></h1>
+          <p className="home-sub">Two teams. Five categories. One scoreboard.<br />Bring your crew. Prove you know the game.</p>
+          <div className="home-game-meta"><span className="status-dot" /> Pass & play <span aria-hidden="true">/</span> Works offline</div>
+          {savedGame && (
+            <section className="resume-card" aria-label="Saved match">
+              <div className="resume-top"><span className="ht-label">{savedGameFinished ? 'Your last game' : 'Still on the clock'}</span><span className="ht-mono">{Object.keys(savedGame.state.answeredSlots).length}/{savedGame.state.totalSlots} played</span></div>
+              <p>{savedGame.state.teams[0].name} <strong>{savedGame.state.teams[0].score} : {savedGame.state.teams[1].score}</strong> {savedGame.state.teams[1].name}</p>
+              <button className="ht-btn-primary" onClick={() => { tapFeedback(); resumeGame(); }}><span>{savedGameFinished ? 'View Results' : 'Resume Game'}</span><IconArrow /></button>
+            </section>
+          )}
           {error && state.categories.length === 0 ? (
-            <div className="ht-error" role="alert">
-              <p>{error}</p>
-              <button className="ht-btn-primary is-orange" onClick={loadCategories} disabled={loading}>
-                <span>{loading ? 'Retrying...' : 'Retry'}</span>
-                <span className="arrow"><IconArrow color="#fff" /></span>
-              </button>
-            </div>
+            <div className="ht-error" role="alert"><p>{error}</p><button className="ht-btn-primary" onClick={loadCategories} disabled={loading}>Try again <IconArrow /></button></div>
           ) : (
-            <button
-              className="ht-btn-primary is-orange"
-              onClick={handleStart}
-              disabled={loading || state.categories.length === 0}
-            >
-              <span>{loading ? 'Loading...' : 'Start Game'}</span>
-              <span className="arrow"><IconArrow color="#fff" /></span>
+            <button className={`ht-btn-primary ${savedGame ? 'is-outline' : 'is-orange'}`} onClick={() => { tapFeedback(); dispatch({ type: 'START_SETUP' }); }} disabled={state.categories.length === 0}>
+              <span>{savedGame ? 'New Game' : state.categories.length ? 'Start Game' : 'Getting the court ready…'}</span><IconArrow />
             </button>
           )}
-        </div>
-
-        {/* Stats row */}
-        <div style={{ padding: '16px 22px 0' }}>
-          <div className="home-stats">
-            <div className="home-stat">
-              <div className="home-stat-num">{totalQ || '—'}</div>
-              <div className="home-stat-lbl">Questions</div>
-            </div>
-            <div className="home-stat">
-              <div className="home-stat-num">{state.categories.length || '—'}</div>
-              <div className="home-stat-lbl">Categories</div>
-            </div>
-            <div className="home-stat">
-              <div className="home-stat-num">2×</div>
-              <div className="home-stat-lbl">Power-ups</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Categories list */}
-        <div className="home-cats-title">
-          <div className="ht-label">The Categories</div>
-          <div className="ht-mono">Tap to preview</div>
-        </div>
-        <div className="home-cats">
-          {state.categories.map((cat, i) => {
-            const CatIcon = CATEGORY_ICONS[cat.id];
-            return (
-              <div
-                key={cat.id}
-                className="home-cat-row"
-                style={{ '--cat-color': cat.color } as React.CSSProperties}
-              >
+          {storageWarning && <p className="ht-notice" role="status">{storageWarning}</p>}
+        </section>
+        <section className="home-stats" aria-label="Game at a glance">
+          <div className="home-stat"><span className="home-stat-num">{totalQ || '—'}</span><span className="home-stat-lbl">Questions</span></div>
+          <div className="home-stat"><span className="home-stat-num">{state.categories.length || '5'}</span><span className="home-stat-lbl">Categories</span></div>
+          <div className="home-stat"><span className="home-stat-num">2×</span><span className="home-stat-lbl">Power play</span></div>
+        </section>
+        <section className="home-categories" aria-labelledby="categories-title">
+          <div className="home-cats-title"><h2 className="ht-label" id="categories-title">Know your court</h2><span className="ht-mono">Explore the categories</span></div>
+          <div className="home-cats">
+            {state.categories.map((cat, i) => {
+              const CatIcon = CATEGORY_ICONS[cat.id];
+              return <button key={cat.id} className="home-cat-row" style={{ '--cat-color': cat.color } as React.CSSProperties} onClick={() => { setCategory(cat); setInfo('category'); }} aria-label={`Preview ${cat.label}`}>
                 <span className="home-cat-num">{String(i + 1).padStart(2, '0')}</span>
-                <div className="home-cat-name">
-                  <span className="home-cat-stripe" />
-                  {CatIcon && <CatIcon size={16} />}
-                  <span className="home-cat-label">{cat.label}</span>
-                </div>
-                <span className="home-cat-count">{cat.questionCount} Q</span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer */}
-        <div className="ht-footer">
-          <a
-            className="ht-privacy-link"
-            href="https://hoopstrivia.com/privacy.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Privacy Policy
-          </a>
-        </div>
+                <span className="home-cat-icon">{CatIcon && <CatIcon size={19} />}</span>
+                <span className="home-cat-label">{cat.label}</span>
+                <span className="home-cat-count">{cat.questionCount} Q</span><IconArrow size={16} />
+              </button>;
+            })}
+          </div>
+        </section>
+        <footer className="ht-footer"><span className="ht-mono">Made for the love of the game.</span><button className="ht-privacy-link" onClick={() => setInfo('privacy')}>Privacy</button></footer>
       </div>
-    </div>
+      {info && <InfoSheet view={info} category={category} onClose={() => setInfo(null)} />}
+    </main>
   );
 }
