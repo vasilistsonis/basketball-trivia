@@ -123,8 +123,22 @@ function pickRandom<T>(items: T[]): T | null {
 
 // ── Public API ──
 
+// A board slot is one (category, points) pair. The DB's slot_key column isn't
+// reliable for this — some rows carry a slot_key that doesn't match their
+// points — so slots are keyed and queried by category + points instead.
+function toSlotKey(category: string, points: number): string {
+  return `${category}:${points}`;
+}
+
+function parseSlotKey(slotKey: string): { category: string; points: number } {
+  const sep = slotKey.lastIndexOf(':');
+  return { category: slotKey.slice(0, sep), points: Number(slotKey.slice(sep + 1)) };
+}
+
 export async function fetchQuestion(slotKey: string, excludeIds: number[]): Promise<ApiQuestion> {
-  const params = new URLSearchParams({ select: '*', slot_key: `eq.${slotKey}` });
+  const { category, points } = parseSlotKey(slotKey);
+  const slotFilter = { select: '*', category: `eq.${category}`, points: `eq.${points}` };
+  const params = new URLSearchParams(slotFilter);
   if (excludeIds.length > 0) {
     params.set('id', `not.in.(${excludeIds.join(',')})`);
   }
@@ -133,8 +147,7 @@ export async function fetchQuestion(slotKey: string, excludeIds: number[]): Prom
 
   // Every question in this slot has been seen — allow repeats rather than dead-ending.
   if (rows.length === 0 && excludeIds.length > 0) {
-    const retry = new URLSearchParams({ select: '*', slot_key: `eq.${slotKey}` });
-    rows = await supabaseGet<QuestionRow[]>(`questions?${retry.toString()}`);
+    rows = await supabaseGet<QuestionRow[]>(`questions?${new URLSearchParams(slotFilter).toString()}`);
   }
 
   const row = pickRandom(rows);
@@ -143,14 +156,14 @@ export async function fetchQuestion(slotKey: string, excludeIds: number[]): Prom
 }
 
 export async function fetchCategories(): Promise<ApiCategory[]> {
-  const rows = await supabaseGet<Pick<QuestionRow, 'category' | 'slot_key' | 'points'>[]>(
-    'questions?select=category,slot_key,points'
+  const rows = await supabaseGet<Pick<QuestionRow, 'category' | 'points'>[]>(
+    'questions?select=category,points'
   );
 
   // Group into per-category slot counts (ported from the old server's buildCategoryMeta)
-  const slotCounts = new Map<string, { category: string; slot_key: string; points: number; count: number }>();
+  const slotCounts = new Map<string, { category: string; points: number; count: number }>();
   for (const row of rows) {
-    const key = `${row.category}:${row.slot_key}:${row.points}`;
+    const key = toSlotKey(row.category, row.points);
     const current = slotCounts.get(key) || { ...row, count: 0 };
     current.count += 1;
     slotCounts.set(key, current);
@@ -171,7 +184,7 @@ export async function fetchCategories(): Promise<ApiCategory[]> {
       };
       catMap[slot.category] = { id: slot.category, ...config, slots: [], questionCount: 0 };
     }
-    catMap[slot.category].slots.push({ points: slot.points, key: slot.slot_key, questionCount: slot.count });
+    catMap[slot.category].slots.push({ points: slot.points, key: toSlotKey(slot.category, slot.points), questionCount: slot.count });
     catMap[slot.category].questionCount += slot.count;
   }
 

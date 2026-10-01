@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import Scoreboard from './Scoreboard';
 import { Wordmark, IconBolt, IconTarget, IconCheck, IconCross, CATEGORY_ICONS } from './Icons';
+import SoundToggle from './SoundToggle';
+import { sfx } from '../sound';
 
 export default function GameBoard() {
   const { state, loadCategories, selectSlot, dispatch, loading, error, clearError } = useGame();
@@ -14,6 +16,7 @@ export default function GameBoard() {
 
   const handleSlotClick = (slotKey: string) => {
     if (state.answeredSlots[slotKey] || loading) return;
+    sfx.tap();
     selectSlot(slotKey);
   };
 
@@ -24,12 +27,15 @@ export default function GameBoard() {
   return (
     <div className="ht-app">
       <div className="ht-paper-grain" />
-      <div className="ht-shell" style={{ padding: 0 }}>
+      <div className="ht-shell board-shell">
         {/* Top bar */}
         <div className="ht-topbar" style={{ paddingBottom: 8 }}>
-          <button className="ht-back-btn" onClick={() => dispatch({ type: 'GO_HOME' })}>Quit</button>
+          <button className="ht-back-btn" onClick={() => { sfx.tap(); dispatch({ type: 'GO_HOME' }); }}>Quit</button>
           <div className="ht-mono">Q {answeredCount + 1} / {state.totalSlots}</div>
-          <Wordmark />
+          <div className="ht-topbar-right">
+            <Wordmark />
+            <SoundToggle />
+          </div>
         </div>
 
         {/* Score & turn indicator */}

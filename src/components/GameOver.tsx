@@ -1,5 +1,8 @@
+import { useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { Wordmark, IconArrow, CourtArc } from './Icons';
+import SoundToggle from './SoundToggle';
+import { sfx } from '../sound';
 
 export default function GameOver() {
   const { state, dispatch } = useGame();
@@ -9,6 +12,12 @@ export default function GameOver() {
     team1.score > team2.score ? team1 : team2.score > team1.score ? team2 : null;
   const winnerIdx = winner === team1 ? 0 : winner === team2 ? 1 : -1;
   const margin = Math.abs(team1.score - team2.score);
+
+  useEffect(() => {
+    sfx.final(winner === null);
+    // Play once when the results screen appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Count correct answers per team
   const answered = Object.values(state.answeredSlots);
@@ -30,8 +39,11 @@ export default function GameOver() {
         {/* Top bar */}
         <div className="ht-topbar">
           <Wordmark light />
-          <div className="ht-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>
-            Final · {answered.length}/{state.totalSlots}
+          <div className="ht-topbar-right">
+            <div className="ht-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              Final · {answered.length}/{state.totalSlots}
+            </div>
+            <SoundToggle light />
           </div>
         </div>
 
@@ -109,14 +121,14 @@ export default function GameOver() {
         <div className="go-actions">
           <button
             className="ht-btn-primary"
-            onClick={() => dispatch({ type: 'START_SETUP' })}
+            onClick={() => { sfx.tap(); dispatch({ type: 'START_SETUP' }); }}
           >
             <span>Run It Back</span>
             <span className="arrow"><IconArrow color="#fff" /></span>
           </button>
           <button
             className="ht-btn-ghost"
-            onClick={() => dispatch({ type: 'GO_HOME' })}
+            onClick={() => { sfx.tap(); dispatch({ type: 'GO_HOME' }); }}
           >
             Back to Home
           </button>

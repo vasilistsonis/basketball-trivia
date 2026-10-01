@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Hoops Trivia',
   webDir: 'dist',
   ios: {
-    contentInset: 'automatic',
+    contentInset: 'never',
   },
 };
 

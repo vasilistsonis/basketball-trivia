@@ -34,6 +34,8 @@
 
 html, body, #root {
   height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -94,18 +96,19 @@ body {
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 18px 22px;
+  padding: clamp(12px, 1.9dvh, 18px) 22px;
   background: var(--ink);
   color: var(--paper);
   border: none;
   border-radius: 0;
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: clamp(22px, 3dvh, 26px);
   letter-spacing: 0.01em;
   text-transform: uppercase;
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ht-btn-primary:hover:not(:disabled) {
@@ -128,7 +131,7 @@ body {
 
 .ht-btn-ghost {
   width: 100%;
-  padding: 14px;
+  padding: clamp(10px, 1.6dvh, 14px);
   background: transparent;
   border: 1.5px solid var(--ink);
   color: var(--ink);
@@ -149,28 +152,51 @@ body {
   color: var(--ink);
   background: var(--paper);
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   position: relative;
+  overflow: hidden;
   letter-spacing: -0.005em;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Every screen fits in one viewport. The shell only scrolls as a last
+   resort on very short screens (e.g. with the keyboard open). */
 .ht-shell {
   position: relative;
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   max-width: 900px;
   margin: 0 auto;
-  padding: 0 0 40px;
+  padding: 0 0 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .ht-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 22px 14px;
+  padding: 12px 22px 8px;
+  flex-shrink: 0;
 }
+.ht-topbar-right {
+  display: flex; align-items: center; gap: 10px;
+}
+
+.ht-sound-btn {
+  display: grid; place-items: center;
+  width: 36px; height: 36px;
+  margin-right: -8px;
+  background: transparent;
+  border: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ht-sound-btn.is-light { color: #fff; }
 
 .ht-wordmark {
   display: flex; align-items: center; gap: 8px;
@@ -212,18 +238,19 @@ body {
    ══════════════════════════════════════════════════════════ */
 
 .home-hero {
-  padding: 14px 22px 18px;
+  padding: 1dvh 22px 1.8dvh;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 .home-tagline {
   display: flex; align-items: center; gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 1.4dvh;
   animation: fadeSlideUp 0.4s ease 0.15s both;
 }
 .home-title {
-  font-size: clamp(64px, 12vw, 96px);
-  margin: 0 0 14px;
+  font-size: clamp(52px, 10dvh, 96px);
+  margin: 0 0 1.4dvh;
   animation: titleReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
 }
 .home-title em {
@@ -237,26 +264,30 @@ body {
   line-height: 1.55;
   color: var(--ink-2);
   max-width: 420px;
-  margin-bottom: 22px;
+  margin-bottom: 2.2dvh;
   animation: fadeSlideUp 0.5s ease 0.4s both;
 }
 
+.home-stats-wrap {
+  padding: 0 22px;
+  flex-shrink: 0;
+}
 .home-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   border-top: 1.5px solid var(--ink);
   border-bottom: 1.5px solid var(--ink);
-  margin-bottom: 22px;
+  margin-bottom: 1.6dvh;
   animation: fadeSlideUp 0.5s ease 0.55s both;
 }
 .home-stat {
-  padding: 12px 10px 10px;
+  padding: 1.2dvh 10px 1dvh;
   position: relative;
 }
 .home-stat + .home-stat { border-left: 1px solid rgba(17,17,17,0.2); }
 .home-stat-num {
   font-family: var(--font-display);
-  font-size: 36px;
+  font-size: clamp(28px, 4dvh, 36px);
   line-height: 0.9;
   animation: countUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.7s both;
 }
@@ -272,20 +303,27 @@ body {
 .home-cats-title {
   display: flex; align-items: baseline; justify-content: space-between;
   padding: 0 22px;
-  margin: 8px 0 10px;
+  margin: 0 0 0.8dvh;
+  flex-shrink: 0;
 }
+/* Rows share whatever height is left between the stats and the footer. */
 .home-cats {
   padding: 0 22px;
   display: flex;
   flex-direction: column;
   gap: 1px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .home-cat-row {
   display: grid;
   grid-template-columns: 28px 1fr auto;
   align-items: center;
   gap: 12px;
-  padding: 14px 0;
+  flex: 1 1 0;
+  min-height: 36px;
+  max-height: 64px;
+  padding: 0;
   border-top: 1px solid rgba(17,17,17,0.15);
   animation: fadeSlideRight 0.4s ease both;
   transition: background 0.15s;
@@ -338,11 +376,12 @@ body {
    ══════════════════════════════════════════════════════════ */
 
 .setup-head {
-  padding: 18px 22px 22px;
+  padding: 1.2dvh 22px 2dvh;
+  flex-shrink: 0;
   animation: fadeSlideUp 0.4s ease 0.1s both;
 }
 .setup-h1 {
-  font-size: clamp(42px, 8vw, 56px);
+  font-size: clamp(38px, 6.4dvh, 56px);
   margin: 6px 0 0;
   animation: titleReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
@@ -358,8 +397,14 @@ body {
 .team-card {
   background: #fff;
   border: 1.5px solid var(--ink);
-  margin: 0 22px 14px;
-  padding: 18px;
+  margin: 0 22px 1.6dvh;
+  padding: clamp(12px, 2dvh, 18px) 18px;
+  /* Cards grow into spare height on tall screens instead of leaving a gap */
+  flex: 1 1 auto;
+  max-height: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   position: relative;
   animation: cardSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   transition: box-shadow 0.2s;
@@ -379,7 +424,7 @@ body {
 }
 .team-card-head {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 0.6dvh;
 }
 .team-num {
   font-family: var(--font-display);
@@ -390,10 +435,10 @@ body {
 }
 .team-jersey {
   font-family: var(--font-display);
-  font-size: 44px;
+  font-size: clamp(34px, 5dvh, 44px);
   background: var(--team-color, var(--orange));
   color: #fff;
-  width: 56px; height: 56px;
+  width: clamp(44px, 6.4dvh, 56px); height: clamp(44px, 6.4dvh, 56px);
   display: grid; place-items: center;
   border: 1.5px solid var(--ink);
   line-height: 1;
@@ -407,17 +452,23 @@ body {
   border: none;
   background: transparent;
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: clamp(24px, 3.4dvh, 30px);
   color: var(--ink);
   text-transform: uppercase;
-  padding: 6px 0;
+  padding: 4px 0;
   border-bottom: 1.5px dashed rgba(17,17,17,0.35);
   outline: none;
   letter-spacing: 0.01em;
 }
 .team-colors {
   display: flex; gap: 10px;
-  margin-top: 14px;
+  margin-top: 1.6dvh;
+}
+
+.setup-cta {
+  padding: 1dvh 22px 0;
+  margin-top: auto;
+  flex-shrink: 0;
 }
 .team-swatch {
   width: 26px; height: 26px;
@@ -443,8 +494,11 @@ body {
    SCOREBOARD (game board top)
    ══════════════════════════════════════════════════════════ */
 
+.board-shell { padding: 0 0 12px; }
+
 .board-top {
-  padding: 4px 16px 12px;
+  padding: 4px 16px 1.4dvh;
+  flex-shrink: 0;
 }
 
 .scoreboard {
@@ -563,8 +617,11 @@ body {
 .board-grid {
   display: grid;
   grid-template-columns: repeat(var(--cols, 5), 1fr);
+  align-items: start;
   gap: 6px;
-  padding: 4px 14px 14px;
+  padding: 4px 14px 0;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .board-col {
   display: flex; flex-direction: column; gap: 6px;
@@ -581,7 +638,7 @@ body {
   padding: 6px 6px 8px;
   text-align: center;
   position: relative;
-  min-height: 68px;
+  height: 68px; /* fixed so a two-line label doesn't push its column down */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -609,7 +666,7 @@ body {
 .slot {
   background: #fff;
   border: 1.5px solid var(--ink);
-  height: 60px;
+  height: clamp(44px, 8.5dvh, 84px);
   display: grid;
   place-items: center;
   font-family: var(--font-display);
@@ -671,24 +728,26 @@ body {
   background: var(--paper);
   border-top-left-radius: 24px;
   border-top-right-radius: 24px;
-  padding: 14px 20px 28px;
+  padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
   border: 1.5px solid var(--ink);
   border-bottom: none;
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: calc(100dvh - env(safe-area-inset-top) - 8px);
   overflow: auto;
+  overscroll-behavior: contain;
   animation: sheetUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .q-handle {
   width: 40px; height: 4px;
   background: var(--ink-4);
   border-radius: 2px;
-  margin: 0 auto 12px;
+  margin: 0 auto 1dvh;
+  flex-shrink: 0;
 }
 .q-head {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 1.2dvh;
 }
 .q-cat {
   display: flex; align-items: center; gap: 8px;
@@ -722,20 +781,20 @@ body {
 .q-text {
   font-family: var(--font-body);
   font-weight: 700;
-  font-size: 22px;
+  font-size: clamp(17px, 2.5dvh, 22px);
   line-height: 1.2;
   letter-spacing: -0.01em;
-  margin: 8px 0 18px;
+  margin: 0.8dvh 0 1.8dvh;
   text-wrap: balance;
 }
 
 .q-image-wrap {
-  margin-bottom: 14px;
+  margin: 0.6dvh 0 0.4dvh;
   text-align: center;
 }
 .q-image {
   max-width: 100%;
-  max-height: 180px;
+  max-height: min(180px, 20dvh);
   object-fit: contain;
   border: 1.5px solid var(--ink);
 }
@@ -743,12 +802,12 @@ body {
 .q-options {
   display: flex; flex-direction: column;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 1.6dvh;
 }
 .q-opt {
   display: flex; align-items: center;
   gap: 12px;
-  padding: 14px 14px;
+  padding: clamp(9px, 1.5dvh, 14px) 14px;
   background: #fff;
   border: 1.5px solid var(--ink);
   cursor: pointer;
@@ -826,7 +885,7 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 1.4dvh;
 }
 .q-pu {
   display: flex; align-items: center;
@@ -870,8 +929,8 @@ body {
 /* Result banner */
 .q-result {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 14px;
-  margin-bottom: 12px;
+  padding: clamp(8px, 1.4dvh, 12px) 14px;
+  margin-bottom: 1.2dvh;
   border: 1.5px solid var(--ink);
   animation: resultSlam 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -901,12 +960,13 @@ body {
 .go-shell {
   background: var(--ink);
   color: var(--paper);
-  min-height: 100vh;
 }
 .go-shell .ht-paper-grain { opacity: 0.18; }
+.go-shell .ht-privacy-link { align-self: center; }
 
 .go-head {
-  padding: 24px 22px 0;
+  padding: 1.6dvh 22px 0;
+  flex-shrink: 0;
   position: relative;
   overflow: hidden;
 }
@@ -921,7 +981,7 @@ body {
 }
 .go-title {
   font-family: var(--font-display);
-  font-size: clamp(56px, 12vw, 88px);
+  font-size: clamp(48px, 9.5dvh, 88px);
   line-height: 0.86;
   text-transform: uppercase;
   margin: 0 0 4px;
@@ -930,7 +990,7 @@ body {
 }
 .go-winner-name {
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: clamp(20px, 3dvh, 26px);
   color: var(--orange);
   margin-top: 6px;
   letter-spacing: 0.01em;
@@ -939,7 +999,8 @@ body {
 }
 
 .go-final {
-  margin: 22px;
+  margin: 2.4dvh 22px;
+  flex-shrink: 0;
   border: 1.5px solid rgba(255,255,255,0.4);
   animation: fadeSlideUp 0.5s ease 0.8s both;
 }
@@ -948,7 +1009,7 @@ body {
   grid-template-columns: 36px 1fr auto;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
+  padding: clamp(8px, 1.5dvh, 14px) 16px;
   border-bottom: 1px dashed rgba(255,255,255,0.25);
 }
 .go-final-row:last-child { border-bottom: none; }
@@ -989,10 +1050,11 @@ body {
   grid-template-columns: repeat(3, 1fr);
   border-top: 1px solid rgba(255,255,255,0.18);
   border-bottom: 1px solid rgba(255,255,255,0.18);
-  margin: 0 22px 22px;
+  margin: 0 22px 2dvh;
+  flex-shrink: 0;
   animation: fadeSlideUp 0.5s ease 1.05s both;
 }
-.go-stat { padding: 12px 4px 10px; }
+.go-stat { padding: 1.2dvh 4px 1dvh; }
 .go-stat + .go-stat { border-left: 1px solid rgba(255,255,255,0.12); }
 .go-stat-num {
   font-family: var(--font-display);
@@ -1011,6 +1073,8 @@ body {
 
 .go-actions {
   padding: 0 22px;
+  margin-top: auto;
+  flex-shrink: 0;
   display: flex; flex-direction: column; gap: 8px;
   animation: fadeSlideUp 0.5s ease 1.2s both;
 }
@@ -1137,8 +1201,8 @@ body {
     gap: 4px;
     padding: 4px 8px 14px;
   }
-  .slot { height: 50px; font-size: 24px; }
-  .col-head { min-height: 60px; }
+  .slot { font-size: 24px; }
+  .col-head { height: 62px; }
   .col-label { font-size: 9px; }
   .sb-team .score { font-size: 36px; }
   .sb-team .name { font-size: 14px; }
@@ -1189,8 +1253,9 @@ body {
 }
 
 .ht-footer {
-  padding: 20px 22px 0;
+  padding: 0.6dvh 22px 0;
   text-align: center;
+  flex-shrink: 0;
 }
 .ht-privacy-link {
   font-family: var(--font-mono);
@@ -1201,11 +1266,10 @@ body {
   text-decoration: underline;
   text-underline-offset: 3px;
   display: inline-block;
-  padding: 10px 12px; /* comfortable touch target */
+  padding: 8px 12px; /* comfortable touch target */
 }
 .ht-privacy-link.is-light {
   color: rgba(255, 255, 255, 0.65);
-  margin-top: 8px;
 }
 
 /* Swatches are now <button>: reset chrome, keep 26px visual,

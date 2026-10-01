@@ -1,6 +1,11 @@
 import { useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { Wordmark, IconArrow, CourtArc, CATEGORY_ICONS } from './Icons';
+import SoundToggle from './SoundToggle';
+import { sfx } from '../sound';
+
+// The launch whistle plays once per app session, not on every return to Home.
+let playedLoadSound = false;
 
 export default function Home() {
   const { state, dispatch, loadCategories, loading, error } = useGame();
@@ -11,7 +16,15 @@ export default function Home() {
     }
   }, [state.categories.length, loadCategories]);
 
+  useEffect(() => {
+    if (state.categories.length > 0 && !playedLoadSound) {
+      playedLoadSound = true;
+      sfx.load();
+    }
+  }, [state.categories.length]);
+
   const handleStart = () => {
+    sfx.tap();
     dispatch({ type: 'START_SETUP' });
   };
 
@@ -24,6 +37,7 @@ export default function Home() {
         {/* Top bar */}
         <div className="ht-topbar">
           <Wordmark />
+          <SoundToggle />
         </div>
 
         {/* Hero section */}
@@ -67,7 +81,7 @@ export default function Home() {
         </div>
 
         {/* Stats row */}
-        <div style={{ padding: '16px 22px 0' }}>
+        <div className="home-stats-wrap">
           <div className="home-stats">
             <div className="home-stat">
               <div className="home-stat-num">{totalQ || '—'}</div>

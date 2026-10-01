@@ -75,6 +75,15 @@ export const IconCross: React.FC<IconProps> = ({ size = 14, color = 'currentColo
   </svg>
 );
 
+export const IconSound: React.FC<IconProps & { muted?: boolean }> = ({ size = 16, color = 'currentColor', muted = false }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path d="M4 9h4l5-4v14l-5-4H4V9z" stroke={color} strokeWidth="1.6" strokeLinejoin="round" />
+    {muted
+      ? <path d="M16 9l5 6M21 9l-5 6" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      : <path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12" stroke={color} strokeWidth="1.6" strokeLinecap="round" />}
+  </svg>
+);
+
 export const IconTrophy: React.FC<IconProps> = ({ size = 24, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <path d="M7 4h10v5a5 5 0 11-10 0V4z" stroke={color} strokeWidth="1.6" strokeLinejoin="round"/>

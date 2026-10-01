@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import {
   IconArrow,
@@ -8,6 +8,7 @@ import {
   IconCross,
   CATEGORY_ICONS,
 } from './Icons';
+import { sfx } from '../sound';
 
 export default function QuestionCard() {
   const { state, dispatch } = useGame();
@@ -15,6 +16,11 @@ export default function QuestionCard() {
   const [revealed, setRevealed] = useState(false);
 
   const q = state.currentQuestion;
+
+  useEffect(() => {
+    if (q) sfx.open();
+  }, [q?.id]);
+
   if (!q) return null;
 
   const currentTeam = state.teams[state.currentTeamIndex];
@@ -38,16 +44,20 @@ export default function QuestionCard() {
 
   const handleSelect = (idx: number) => {
     if (revealed || state.fiftyFiftyEliminated.includes(idx)) return;
+    sfx.select();
     setSelected(idx);
   };
 
   const handleConfirm = () => {
     if (selected === null) return;
+    if (selected === q.correctIndex) sfx.correct();
+    else sfx.wrong();
     setRevealed(true);
   };
 
   const handleContinue = () => {
     if (selected === null) return;
+    sfx.tap();
     dispatch({ type: 'ANSWER_QUESTION', selectedIndex: selected });
     setSelected(null);
     setRevealed(false);
@@ -146,7 +156,7 @@ export default function QuestionCard() {
             <button
               className={`q-pu ${state.activeDouble ? 'used' : ''}`}
               disabled={!canUseDouble}
-              onClick={() => dispatch({ type: 'USE_DOUBLE' })}
+              onClick={() => { sfx.powerUp(); dispatch({ type: 'USE_DOUBLE' }); }}
             >
               <span className="icon"><IconBolt size={14} color="#F2EEE5" /></span>
               <span>
@@ -157,7 +167,7 @@ export default function QuestionCard() {
             <button
               className={`q-pu ${state.fiftyFiftyEliminated.length > 0 ? 'used' : ''}`}
               disabled={!canUseFifty}
-              onClick={() => dispatch({ type: 'USE_FIFTY_FIFTY' })}
+              onClick={() => { sfx.powerUp(); dispatch({ type: 'USE_FIFTY_FIFTY' }); }}
             >
               <span className="icon"><IconTarget size={14} color="#F2EEE5" /></span>
               <span>
