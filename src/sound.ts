@@ -23,9 +23,17 @@ function getCtx(): AudioContext | null {
   const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctor) return null;
   ctx = new Ctor();
+  // Compressor keeps layered sounds (e.g. swish + arpeggio) loud without clipping.
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -6;
+  limiter.knee.value = 6;
+  limiter.ratio.value = 8;
+  limiter.attack.value = 0.002;
+  limiter.release.value = 0.15;
+  limiter.connect(ctx.destination);
   master = ctx.createGain();
-  master.gain.value = 0.6;
-  master.connect(ctx.destination);
+  master.gain.value = 1;
+  master.connect(limiter);
   return ctx;
 }
 
@@ -149,62 +157,62 @@ export const sfx = {
   /** App ready — two referee whistle blasts. */
   load: () =>
     play((c) => {
-      tone(c, { freq: 2600, dur: 0.14, vol: 0.12, type: 'sine', vibrato: { rate: 28, depth: 90 } });
-      tone(c, { freq: 2600, start: 0.2, dur: 0.32, vol: 0.12, type: 'sine', vibrato: { rate: 28, depth: 90 } });
+      tone(c, { freq: 2600, dur: 0.14, vol: 0.3, type: 'sine', vibrato: { rate: 28, depth: 90 } });
+      tone(c, { freq: 2600, start: 0.2, dur: 0.32, vol: 0.3, type: 'sine', vibrato: { rate: 28, depth: 90 } });
     }),
 
   /** Generic button press. */
   tap: () =>
     play((c) => {
-      tone(c, { freq: 1100, to: 600, dur: 0.06, vol: 0.12, type: 'triangle' });
+      tone(c, { freq: 1100, to: 600, dur: 0.06, vol: 0.3, type: 'triangle' });
     }),
 
   /** Question sheet slides in. */
   open: () =>
     play((c) => {
-      noise(c, { dur: 0.25, vol: 0.12, from: 400, to: 3000 });
-      tone(c, { freq: 330, to: 660, dur: 0.18, vol: 0.12, type: 'triangle' });
+      noise(c, { dur: 0.25, vol: 0.3, from: 400, to: 3000 });
+      tone(c, { freq: 330, to: 660, dur: 0.18, vol: 0.3, type: 'triangle' });
     }),
 
   /** Answer option highlighted. */
   select: () =>
     play((c) => {
-      tone(c, { freq: 900, dur: 0.05, vol: 0.14, type: 'square' });
+      tone(c, { freq: 900, dur: 0.05, vol: 0.35, type: 'square' });
     }),
 
   /** Correct answer — net swish plus a rising arpeggio. */
   correct: () =>
     play((c) => {
-      noise(c, { dur: 0.22, vol: 0.18, from: 5000, to: 1500 });
+      noise(c, { dur: 0.22, vol: 0.45, from: 5000, to: 1500 });
       [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((f, i) =>
-        tone(c, { freq: f, start: 0.08 + i * 0.08, dur: i === 3 ? 0.45 : 0.16, vol: 0.2, type: 'triangle' })
+        tone(c, { freq: f, start: 0.08 + i * 0.08, dur: i === 3 ? 0.45 : 0.16, vol: 0.5, type: 'triangle' })
       );
     }),
 
   /** Wrong answer — low shot-clock buzzer. */
   wrong: () =>
     play((c) => {
-      tone(c, { freq: 140, dur: 0.5, vol: 0.18, type: 'sawtooth', attack: 0.01 });
-      tone(c, { freq: 147, dur: 0.5, vol: 0.18, type: 'sawtooth', attack: 0.01 });
+      tone(c, { freq: 140, dur: 0.5, vol: 0.45, type: 'sawtooth', attack: 0.01 });
+      tone(c, { freq: 147, dur: 0.5, vol: 0.45, type: 'sawtooth', attack: 0.01 });
     }),
 
   /** Power-up activated — rising zap. */
   powerUp: () =>
     play((c) => {
-      tone(c, { freq: 400, to: 1600, dur: 0.28, vol: 0.16, type: 'sine', vibrato: { rate: 18, depth: 60 } });
-      tone(c, { freq: 800, to: 3200, start: 0.05, dur: 0.22, vol: 0.06, type: 'triangle' });
+      tone(c, { freq: 400, to: 1600, dur: 0.28, vol: 0.4, type: 'sine', vibrato: { rate: 18, depth: 60 } });
+      tone(c, { freq: 800, to: 3200, start: 0.05, dur: 0.22, vol: 0.15, type: 'triangle' });
     }),
 
   /** Final buzzer, then a fanfare (or a flat resolve for a tie). */
   final: (tie: boolean) =>
     play((c) => {
-      tone(c, { freq: 220, dur: 0.7, vol: 0.16, type: 'square', attack: 0.01 });
-      tone(c, { freq: 223, dur: 0.7, vol: 0.12, type: 'sawtooth', attack: 0.01 });
+      tone(c, { freq: 220, dur: 0.7, vol: 0.4, type: 'square', attack: 0.01 });
+      tone(c, { freq: 223, dur: 0.7, vol: 0.3, type: 'sawtooth', attack: 0.01 });
       const notes = tie ? [NOTE.G4, NOTE.C5, NOTE.G4] : [NOTE.G4, NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6];
       notes.forEach((f, i) => {
         const last = i === notes.length - 1;
-        tone(c, { freq: f, start: 0.85 + i * 0.12, dur: last ? 0.9 : 0.2, vol: 0.2, type: 'triangle' });
-        if (last && !tie) tone(c, { freq: f / 2, start: 0.85 + i * 0.12, dur: 0.9, vol: 0.12, type: 'triangle' });
+        tone(c, { freq: f, start: 0.85 + i * 0.12, dur: last ? 0.9 : 0.2, vol: 0.5, type: 'triangle' });
+        if (last && !tie) tone(c, { freq: f / 2, start: 0.85 + i * 0.12, dur: 0.9, vol: 0.3, type: 'triangle' });
       });
     }),
 };
