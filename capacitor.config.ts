@@ -6,6 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   ios: {
     contentInset: 'never',
+    // Paper, so there's no white flash between the launch screen and the first paint.
+    backgroundColor: '#F2EEE5',
   },
 };
 
