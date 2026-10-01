@@ -9,11 +9,18 @@ import {
   CATEGORY_ICONS,
 } from './Icons';
 import { sfx } from '../sound';
+import { haptic } from '../native';
+
+// Just past the 220ms sheetDown animation, so the board takes over as the sheet lands.
+const CLOSE_MS = 230;
+
+const pts = (n: number) => (n === 1 ? 'PT' : 'PTS');
 
 export default function QuestionCard() {
   const { state, dispatch } = useGame();
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   const q = state.currentQuestion;
 
@@ -21,18 +28,28 @@ export default function QuestionCard() {
     if (q) sfx.open();
   }, [q?.id]);
 
+  // The sheet slides away first; the answer is committed once it's gone.
+  useEffect(() => {
+    if (!closing || selected === null) return;
+    const timer = setTimeout(() => {
+      dispatch({ type: 'ANSWER_QUESTION', selectedIndex: selected });
+    }, CLOSE_MS);
+    return () => clearTimeout(timer);
+  }, [closing, selected, dispatch]);
+
   if (!q) return null;
 
   const currentTeam = state.teams[state.currentTeamIndex];
   const otherTeam = state.teams[state.currentTeamIndex === 0 ? 1 : 0];
   const currentPU = state.powerUps[state.currentTeamIndex];
+  const isLastQuestion = Object.keys(state.answeredSlots).length + 1 >= state.totalSlots;
 
   // Compute effective points
   let displayPoints = q.points;
-  let pointsSuffix = 'PTS';
+  let pointsSuffix = pts(q.points);
   if (state.activeDouble) {
     displayPoints = q.points * 2;
-    pointsSuffix = '2× PT';
+    pointsSuffix = `2× ${pts(displayPoints)}`;
   } else if (state.fiftyFiftyEliminated.length > 0) {
     displayPoints = Math.ceil(q.points * 0.5);
     pointsSuffix = '50/50';
@@ -44,21 +61,25 @@ export default function QuestionCard() {
 
   const handleSelect = (idx: number) => {
     if (revealed || state.fiftyFiftyEliminated.includes(idx)) return;
+    haptic.select();
     setSelected(idx);
   };
 
   const handleConfirm = () => {
     if (selected === null) return;
-    if (selected === q.correctIndex) sfx.correct();
-    else sfx.wrong();
+    if (selected === q.correctIndex) {
+      sfx.correct();
+      haptic.correct();
+    } else {
+      sfx.wrong();
+      haptic.wrong();
+    }
     setRevealed(true);
   };
 
   const handleContinue = () => {
-    if (selected === null) return;
-    dispatch({ type: 'ANSWER_QUESTION', selectedIndex: selected });
-    setSelected(null);
-    setRevealed(false);
+    if (selected === null || closing) return;
+    setClosing(true);
   };
 
   const canUseDouble =
@@ -73,15 +94,14 @@ export default function QuestionCard() {
     !revealed;
 
   const isCorrect = selected !== null && selected === q.correctIndex;
+  const closingClass = closing ? 'is-closing' : '';
 
   return (
-    <div className="q-overlay">
+    <div className={`q-overlay ${closingClass}`}>
       <div
-        className="q-sheet"
+        className={`q-sheet ${closingClass}`}
         style={{ '--cat-color': catMeta?.color || '#E85D1E' } as React.CSSProperties}
       >
-        <div className="q-handle" />
-
         {/* Header: category + points */}
         <div className="q-head">
           <div className="q-cat">
@@ -188,14 +208,14 @@ export default function QuestionCard() {
                 {isCorrect ? 'Bucket!' : 'Wrong call.'}
                 <small>
                   {isCorrect
-                    ? `+${displayPoints} PT`
-                    : `+0 PT · Answer was ${q.options[q.correctIndex]}`
+                    ? `+${displayPoints} ${pts(displayPoints)}`
+                    : `+0 PTS · Answer was ${q.options[q.correctIndex]}`
                   }
                 </small>
               </div>
             </div>
-            <button className="ht-btn-primary" onClick={handleContinue}>
-              <span>Next Up · {otherTeam.name}</span>
+            <button className="ht-btn-primary" onClick={handleContinue} disabled={closing}>
+              <span>{isLastQuestion ? 'See the Final Score' : `Next Up · ${otherTeam.name}`}</span>
               <span className="arrow"><IconArrow /></span>
             </button>
           </>

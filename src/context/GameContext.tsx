@@ -6,9 +6,11 @@ import { fetchQuestion, fetchCategories, ApiCategory } from '../api/client';
 
 const initialPowerUps: PowerUps = { usedDouble: false, usedFiftyFifty: false };
 
+// Defaults are two of the swatches offered on the setup screen, so a swatch
+// reads as selected the moment that screen opens.
 const initialTeams: [Team, Team] = [
-  { name: 'Team 1', color: '#f97316', score: 0 },
-  { name: 'Team 2', color: '#3b82f6', score: 0 },
+  { name: 'Team 1', color: '#E85D1E', score: 0 },
+  { name: 'Team 2', color: '#3B4D8A', score: 0 },
 ];
 
 const initialState: GameState = {

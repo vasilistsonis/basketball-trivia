@@ -74,7 +74,12 @@ export default function TeamSetup() {
             className="team-input"
             value={team1.name}
             onChange={(e) => setTeam1({ ...team1, name: e.target.value })}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             placeholder="TEAM NAME"
+            maxLength={16}
+            enterKeyHint="done"
+            autoCapitalize="characters"
+            autoCorrect="off"
           />
           <div className="team-colors">
             {COLORS.map((c) => (
@@ -101,7 +106,12 @@ export default function TeamSetup() {
             className="team-input"
             value={team2.name}
             onChange={(e) => setTeam2({ ...team2, name: e.target.value })}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             placeholder="TEAM NAME"
+            maxLength={16}
+            enterKeyHint="done"
+            autoCapitalize="characters"
+            autoCorrect="off"
           />
           <div className="team-colors">
             {COLORS.map((c) => (

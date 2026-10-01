@@ -21,6 +21,8 @@ export default function GameBoard() {
   const currentTeam = state.teams[state.currentTeamIndex];
   const currentPU = state.powerUps[state.currentTeamIndex];
   const answeredCount = Object.keys(state.answeredSlots).length;
+  // One grid row per point value. A category with fewer values leaves its lower cells empty.
+  const rowCount = Math.max(0, ...state.categories.map((cat) => cat.slots.length));
 
   return (
     <div className="ht-app">
@@ -29,7 +31,7 @@ export default function GameBoard() {
         {/* Top bar */}
         <div className="ht-topbar" style={{ paddingBottom: 8 }}>
           <button className="ht-back-btn" onClick={() => dispatch({ type: 'GO_HOME' })}>Quit</button>
-          <div className="ht-mono">Q {answeredCount + 1} / {state.totalSlots}</div>
+          <div className="ht-mono">Q {Math.min(answeredCount + 1, state.totalSlots)} / {state.totalSlots}</div>
           <div className="ht-topbar-right">
             <Wordmark />
             <SoundToggle />
@@ -59,8 +61,6 @@ export default function GameBoard() {
           </div>
         </div>
 
-        {loading && <div className="loading-indicator">Loading question...</div>}
-
         {error && (
           <div className="ht-error-banner" role="alert">
             <span>{error}</span>
@@ -69,58 +69,79 @@ export default function GameBoard() {
         )}
 
         {/* Jeopardy-style board */}
-        <div className="board-grid" style={{ '--cols': state.categories.length } as React.CSSProperties}>
-          {state.categories.map((cat) => {
-            const CatIcon = CATEGORY_ICONS[cat.id];
-            return (
-              <div key={cat.id} className="board-col">
-                <div className="col-head" style={{ '--cat-color': cat.color } as React.CSSProperties}>
+        <div className="board-body">
+          {loading && (
+            <div className="loading-indicator" role="status">
+              <span>Loading question...</span>
+            </div>
+          )}
+          <div
+            className="board-grid"
+            style={{ '--cols': state.categories.length, '--rows': rowCount } as React.CSSProperties}
+          >
+            {state.categories.map((cat, col) => {
+              const CatIcon = CATEGORY_ICONS[cat.id];
+              return (
+                <div
+                  key={cat.id}
+                  className="col-head"
+                  style={{ '--cat-color': cat.color, '--col': col } as React.CSSProperties}
+                >
                   <div className="col-icon">{CatIcon && <CatIcon size={20} />}</div>
                   <div className="col-label">{cat.label}</div>
                 </div>
-                {cat.slots.map((slot) => {
-                  const answered = state.answeredSlots[slot.key];
-                  if (answered) {
-                    const teamColor = state.teams[answered.answeredByTeam].color;
-                    return (
-                      <button
-                        key={slot.key}
-                        className={`slot answered ${answered.correct ? 'correct' : 'wrong'}`}
-                        style={{ borderColor: teamColor }}
-                        disabled
-                      >
-                        {answered.correct
-                          ? <IconCheck size={20} color="#fff" />
-                          : <IconCross size={20} color="#F2EEE5" />
-                        }
-                        <span
-                          className="stamp"
-                          style={{
-                            color: answered.correct
-                              ? 'rgba(255,255,255,0.9)'
-                              : 'rgba(242,238,229,0.95)',
-                          }}
-                        >
-                          T{answered.answeredByTeam + 1}·{slot.points}
-                        </span>
-                      </button>
-                    );
-                  }
+              );
+            })}
+
+            {Array.from({ length: rowCount }, (_, row) =>
+              state.categories.map((cat, col) => {
+                const slot = cat.slots[row];
+                if (!slot) {
+                  return <span key={`${cat.id}-${row}`} className="slot-empty" aria-hidden="true" />;
+                }
+                const colStyle = { '--col': col } as React.CSSProperties;
+                const answered = state.answeredSlots[slot.key];
+                if (answered) {
+                  const teamColor = state.teams[answered.answeredByTeam].color;
                   return (
                     <button
                       key={slot.key}
-                      className="slot"
-                      onClick={() => handleSlotClick(slot.key)}
-                      disabled={loading}
+                      className={`slot answered ${answered.correct ? 'correct' : 'wrong'}`}
+                      style={{ ...colStyle, borderColor: teamColor }}
+                      disabled
                     >
-                      {slot.points}
-                      <span className="stamp">PT{slot.points > 1 ? 'S' : ''}</span>
+                      {answered.correct
+                        ? <IconCheck size={20} color="#fff" />
+                        : <IconCross size={20} color="#F2EEE5" />
+                      }
+                      <span
+                        className="stamp"
+                        style={{
+                          color: answered.correct
+                            ? 'rgba(255,255,255,0.9)'
+                            : 'rgba(242,238,229,0.95)',
+                        }}
+                      >
+                        T{answered.answeredByTeam + 1}·{slot.points}
+                      </span>
                     </button>
                   );
-                })}
-              </div>
-            );
-          })}
+                }
+                return (
+                  <button
+                    key={slot.key}
+                    className="slot"
+                    style={colStyle}
+                    onClick={() => handleSlotClick(slot.key)}
+                    disabled={loading}
+                  >
+                    {slot.points}
+                    <span className="stamp">PT{slot.points > 1 ? 'S' : ''}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </div>

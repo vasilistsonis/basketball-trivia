@@ -3,6 +3,7 @@ import { useGame } from '../context/GameContext';
 import { Wordmark, IconArrow, CourtArc } from './Icons';
 import SoundToggle from './SoundToggle';
 import { sfx } from '../sound';
+import { haptic } from '../native';
 
 export default function GameOver() {
   const { state, dispatch } = useGame();
@@ -15,6 +16,7 @@ export default function GameOver() {
 
   useEffect(() => {
     sfx.final(winner === null);
+    haptic.final();
     // Play once when the results screen appears.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -59,10 +61,10 @@ export default function GameOver() {
           <div className="go-kicker">FINAL BUZZER</div>
           {winner ? (
             <>
-              <h1 className="go-title">
-                {winner.name.split(' ')[0]}<br />Take It.
+              <h1 className={`go-title ${winner.name.length > 8 ? 'is-long' : ''}`}>
+                {winner.name}<br />Take It.
               </h1>
-              <div className="go-winner-name">+ {margin} PT Margin</div>
+              <div className="go-winner-name">+{margin} {margin === 1 ? 'PT' : 'PTS'} Margin</div>
             </>
           ) : (
             <>

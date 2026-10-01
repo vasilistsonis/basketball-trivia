@@ -1,4 +1,25 @@
+import { useEffect, useRef, useState } from 'react';
 import { useGame } from '../context/GameContext';
+
+/** The number re-mounts when it changes, so the pop animation replays per point scored. */
+function Score({ value }: { value: number }) {
+  const prev = useRef(value);
+  const [hasChanged, setHasChanged] = useState(false);
+  const changedNow = prev.current !== value;
+
+  useEffect(() => {
+    if (prev.current !== value) {
+      prev.current = value;
+      setHasChanged(true);
+    }
+  }, [value]);
+
+  return (
+    <div key={value} className={`score ${changedNow || hasChanged ? 'is-pop' : ''}`}>
+      {String(value).padStart(2, '0')}
+    </div>
+  );
+}
 
 export default function Scoreboard() {
   const { state } = useGame();
@@ -12,7 +33,7 @@ export default function Scoreboard() {
           <span>Team 01</span>
         </div>
         <div className="name">{team1.name}</div>
-        <div className="score">{String(team1.score).padStart(2, '0')}</div>
+        <Score value={team1.score} />
       </div>
       <div className="sb-divider" />
       <div className="sb-team right" style={{ '--team-color': team2.color } as React.CSSProperties}>
@@ -21,7 +42,7 @@ export default function Scoreboard() {
           <span className="stripe" />
         </div>
         <div className="name">{team2.name}</div>
-        <div className="score">{String(team2.score).padStart(2, '0')}</div>
+        <Score value={team2.score} />
       </div>
     </div>
   );

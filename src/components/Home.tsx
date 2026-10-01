@@ -100,7 +100,7 @@ export default function Home() {
         {/* Categories list */}
         <div className="home-cats-title">
           <div className="ht-label">The Categories</div>
-          <div className="ht-mono">Tap to preview</div>
+          <div className="ht-mono">{state.categories.length || '—'} on the board</div>
         </div>
         <div className="home-cats">
           {state.categories.map((cat, i) => {
