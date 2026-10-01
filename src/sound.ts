@@ -10,12 +10,16 @@ let master: GainNode | null = null;
 let muted = readMuted();
 const listeners = new Set<(muted: boolean) => void>();
 
+// An explicit choice from the toggle wins; otherwise treat Reduce Motion as a
+// signal the player prefers a quieter experience and start muted.
 function readMuted(): boolean {
   try {
-    return localStorage.getItem(MUTE_KEY) === '1';
+    const stored = localStorage.getItem(MUTE_KEY);
+    if (stored !== null) return stored === '1';
   } catch {
-    return false;
+    // Storage unavailable — fall through to the system preference.
   }
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
 
 function getCtx(): AudioContext | null {
@@ -68,6 +72,14 @@ export function onMuteChange(fn: (muted: boolean) => void) {
 
 // ── Building blocks ──
 
+/** Disconnect a sound's nodes once its source finishes so the graph doesn't grow. */
+function disconnectOnEnd(source: AudioScheduledSourceNode, ...nodes: AudioNode[]) {
+  source.onended = () => {
+    source.disconnect();
+    nodes.forEach((n) => n.disconnect());
+  };
+}
+
 interface ToneOpts {
   freq: number;
   to?: number;          // glide target frequency
@@ -93,6 +105,7 @@ function tone(c: AudioContext, o: ToneOpts) {
     lfo.frequency.value = o.vibrato.rate;
     lfoGain.gain.value = o.vibrato.depth;
     lfo.connect(lfoGain).connect(osc.frequency);
+    disconnectOnEnd(lfo, lfoGain);
     lfo.start(t0);
     lfo.stop(t0 + o.dur);
   }
@@ -104,6 +117,7 @@ function tone(c: AudioContext, o: ToneOpts) {
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
 
   osc.connect(gain).connect(master!);
+  disconnectOnEnd(osc, gain);
   osc.start(t0);
   osc.stop(t0 + o.dur + 0.02);
 }
@@ -127,6 +141,7 @@ function noise(c: AudioContext, o: { start?: number; dur: number; vol?: number; 
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
 
   src.connect(filter).connect(gain).connect(master!);
+  disconnectOnEnd(src, filter, gain);
   src.start(t0);
   src.stop(t0 + o.dur);
 }
@@ -205,6 +220,7 @@ function crowd(c: AudioContext, t0: number, dur: number, vol: number, cheerAt: n
   env.exponentialRampToValueAtTime(0.0001, t0 + dur);
 
   toArena(c, bus, 0.25);
+  disconnectOnEnd(src, bus);
   src.start(t0);
   src.stop(t0 + dur);
 }
@@ -220,6 +236,7 @@ function dribble(c: AudioContext, t: number, vol: number) {
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
   osc.connect(g);
   toArena(c, g, 0.6);
+  disconnectOnEnd(osc, g);
   osc.start(t);
   osc.stop(t + 0.2);
 
@@ -236,6 +253,7 @@ function dribble(c: AudioContext, t: number, vol: number) {
   sg.gain.value = vol * 0.5;
   src.connect(lp).connect(sg);
   toArena(c, sg, 0.6);
+  disconnectOnEnd(src, lp, sg);
   src.start(t);
 }
 
@@ -268,6 +286,8 @@ function squeak(c: AudioContext, t: number, f: number, vol: number, dur = 0.11) 
 
   osc.connect(bp).connect(g);
   toArena(c, g, 0.5);
+  disconnectOnEnd(osc, bp, g);
+  disconnectOnEnd(jitter, jitterDepth);
   [osc, jitter].forEach((o) => {
     o.start(t);
     o.stop(t + dur + 0.02);
@@ -306,6 +326,9 @@ function whistle(c: AudioContext, t: number, dur: number, vol: number) {
   overtone.connect(overtoneGain).connect(am);
   am.connect(env);
   toArena(c, env, 0.7);
+  disconnectOnEnd(osc, am, env);
+  disconnectOnEnd(overtone, overtoneGain);
+  disconnectOnEnd(rattle, amDepth, fmDepth);
   [osc, overtone, rattle].forEach((o) => {
     o.start(t);
     o.stop(t + dur + 0.02);
@@ -366,11 +389,11 @@ export const sfx = {
       );
     }),
 
-  /** Wrong answer — low shot-clock buzzer. */
+  /** Wrong answer — a soft falling two-note "miss", informative rather than punishing. */
   wrong: () =>
     play((c) => {
-      tone(c, { freq: 140, dur: 0.5, vol: 0.45, type: 'sawtooth', attack: 0.01 });
-      tone(c, { freq: 147, dur: 0.5, vol: 0.45, type: 'sawtooth', attack: 0.01 });
+      tone(c, { freq: 392, to: 370, dur: 0.18, vol: 0.4, type: 'triangle', attack: 0.01 });
+      tone(c, { freq: 311, to: 277, start: 0.16, dur: 0.38, vol: 0.4, type: 'triangle', attack: 0.01 });
     }),
 
   /** Power-up activated — rising zap. */
