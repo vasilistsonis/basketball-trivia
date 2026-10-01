@@ -131,6 +131,187 @@ function noise(c: AudioContext, o: { start?: number; dur: number; vol?: number; 
   src.stop(t0 + o.dur);
 }
 
+// ── Arena intro building blocks ──
+
+let reverb: ConvolverNode | null = null;
+
+/** Big-gym reverb: a synthetic impulse response of decaying stereo noise. */
+function getReverb(c: AudioContext): AudioNode {
+  if (reverb) return reverb;
+  const len = Math.floor(c.sampleRate * 1.8);
+  const ir = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  }
+  reverb = c.createConvolver();
+  reverb.buffer = ir;
+  const wet = c.createGain();
+  wet.gain.value = 0.3;
+  reverb.connect(wet).connect(master!);
+  return reverb;
+}
+
+/** Send a node to the master bus plus some of it into the gym reverb. */
+function toArena(c: AudioContext, node: AudioNode, wet: number) {
+  node.connect(master!);
+  const send = c.createGain();
+  send.gain.value = wet;
+  node.connect(send).connect(getReverb(c));
+}
+
+/** Crowd murmur that swells into a cheer: pink noise through vocal-range bands. */
+function crowd(c: AudioContext, t0: number, dur: number, vol: number, cheerAt: number) {
+  const len = Math.ceil(c.sampleRate * dur);
+  const buf = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    let b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < len; i++) {
+      const white = Math.random() * 2 - 1;
+      b0 = 0.99765 * b0 + white * 0.099046;
+      b1 = 0.963 * b1 + white * 0.2965164;
+      b2 = 0.57 * b2 + white * 1.0526913;
+      d[i] = (b0 + b1 + b2 + white * 0.1848) * 0.25;
+    }
+  }
+  const src = c.createBufferSource();
+  src.buffer = buf;
+
+  const bus = c.createGain();
+  [
+    { f: 450, q: 0.8, g: 1 },
+    { f: 1100, q: 1.2, g: 0.8 },
+    { f: 2600, q: 1.5, g: 0.35 },
+  ].forEach((b) => {
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = b.f;
+    bp.Q.value = b.q;
+    const g = c.createGain();
+    g.gain.value = b.g;
+    src.connect(bp).connect(g).connect(bus);
+  });
+
+  // Uneven swells so it reads as a crowd breathing, not steady hiss.
+  const env = bus.gain;
+  env.setValueAtTime(0.0001, t0);
+  env.linearRampToValueAtTime(vol * 0.6, t0 + 0.5);
+  for (let t = t0 + 0.75; t < t0 + cheerAt - 0.3; t += 0.25) {
+    env.linearRampToValueAtTime(vol * (0.5 + Math.random() * 0.25), t);
+  }
+  env.linearRampToValueAtTime(vol * 1.4, t0 + cheerAt + 0.35);
+  env.linearRampToValueAtTime(vol * 1.1, t0 + dur - 0.6);
+  env.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+  toArena(c, bus, 0.25);
+  src.start(t0);
+  src.stop(t0 + dur);
+}
+
+/** Ball hitting hardwood: a falling low thump plus a short leather slap. */
+function dribble(c: AudioContext, t: number, vol: number) {
+  const osc = c.createOscillator();
+  osc.frequency.setValueAtTime(150, t);
+  osc.frequency.exponentialRampToValueAtTime(55, t + 0.12);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  osc.connect(g);
+  toArena(c, g, 0.6);
+  osc.start(t);
+  osc.stop(t + 0.2);
+
+  const slapLen = Math.ceil(c.sampleRate * 0.03);
+  const slap = c.createBuffer(1, slapLen, c.sampleRate);
+  const d = slap.getChannelData(0);
+  for (let i = 0; i < slapLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / slapLen);
+  const src = c.createBufferSource();
+  src.buffer = slap;
+  const lp = c.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 1400;
+  const sg = c.createGain();
+  sg.gain.value = vol * 0.5;
+  src.connect(lp).connect(sg);
+  toArena(c, sg, 0.6);
+  src.start(t);
+}
+
+/** Sneaker squeak: a resonant chirp with stick-slip roughness. */
+function squeak(c: AudioContext, t: number, f: number, vol: number, dur = 0.11) {
+  const osc = c.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(f * 0.85, t);
+  osc.frequency.exponentialRampToValueAtTime(f * 1.12, t + dur * 0.35);
+  osc.frequency.exponentialRampToValueAtTime(f * 0.95, t + dur);
+
+  const jitter = c.createOscillator();
+  jitter.type = 'square';
+  jitter.frequency.value = 70;
+  const jitterDepth = c.createGain();
+  jitterDepth.gain.value = f * 0.03;
+  jitter.connect(jitterDepth).connect(osc.frequency);
+
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.Q.value = 6;
+  bp.frequency.setValueAtTime(f, t);
+  bp.frequency.exponentialRampToValueAtTime(f * 1.1, t + dur * 0.35);
+
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+  g.gain.setValueAtTime(vol, t + dur * 0.6);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+  osc.connect(bp).connect(g);
+  toArena(c, g, 0.5);
+  [osc, jitter].forEach((o) => {
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  });
+}
+
+/** Referee's pea whistle: a bright tone with the pea's fast rattle. */
+function whistle(c: AudioContext, t: number, dur: number, vol: number) {
+  const osc = c.createOscillator();
+  osc.frequency.setValueAtTime(2950, t);
+  osc.frequency.setValueAtTime(2950, t + dur - 0.06);
+  osc.frequency.exponentialRampToValueAtTime(2700, t + dur);
+  const overtone = c.createOscillator();
+  overtone.frequency.value = 5900;
+  const overtoneGain = c.createGain();
+  overtoneGain.gain.value = 0.15;
+
+  const rattle = c.createOscillator();
+  rattle.frequency.value = 38;
+  const am = c.createGain();
+  am.gain.value = 0.65;
+  const amDepth = c.createGain();
+  amDepth.gain.value = 0.35;
+  rattle.connect(amDepth).connect(am.gain);
+  const fmDepth = c.createGain();
+  fmDepth.gain.value = 70;
+  rattle.connect(fmDepth).connect(osc.frequency);
+
+  const env = c.createGain();
+  env.gain.setValueAtTime(0.0001, t);
+  env.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+  env.gain.setValueAtTime(vol, t + dur - 0.05);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+  osc.connect(am);
+  overtone.connect(overtoneGain).connect(am);
+  am.connect(env);
+  toArena(c, env, 0.7);
+  [osc, overtone, rattle].forEach((o) => {
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  });
+}
+
 function play(fn: (c: AudioContext) => void) {
   if (muted) return;
   const c = getCtx();
@@ -154,17 +335,19 @@ function play(fn: (c: AudioContext) => void) {
 const NOTE = { G4: 392, C5: 523.25, E5: 659.25, G5: 783.99, C6: 1046.5 };
 
 export const sfx = {
-  /** App ready — two referee whistle blasts. */
+  /** App ready — game-night arena: crowd, dribbles, sneaker squeaks, ref whistle. */
   load: () =>
     play((c) => {
-      tone(c, { freq: 2600, dur: 0.14, vol: 0.3, type: 'sine', vibrato: { rate: 28, depth: 90 } });
-      tone(c, { freq: 2600, start: 0.2, dur: 0.32, vol: 0.3, type: 'sine', vibrato: { rate: 28, depth: 90 } });
-    }),
-
-  /** Generic button press. */
-  tap: () =>
-    play((c) => {
-      tone(c, { freq: 1100, to: 600, dur: 0.06, vol: 0.3, type: 'triangle' });
+      const t0 = c.currentTime + 0.05;
+      crowd(c, t0, 3.6, 0.35, 2.2);
+      [0.25, 0.65, 1.05, 1.45, 1.85].forEach((t, i) => dribble(c, t0 + t, 0.6 - i * 0.05));
+      squeak(c, t0 + 0.5, 2350, 0.4);
+      squeak(c, t0 + 0.58, 2700, 0.35, 0.08);
+      squeak(c, t0 + 1.15, 2100, 0.4, 0.14);
+      squeak(c, t0 + 1.6, 2550, 0.35);
+      squeak(c, t0 + 1.68, 2900, 0.3, 0.07);
+      whistle(c, t0 + 2.15, 0.12, 0.35);
+      whistle(c, t0 + 2.35, 0.55, 0.35);
     }),
 
   /** Question sheet slides in. */
@@ -172,12 +355,6 @@ export const sfx = {
     play((c) => {
       noise(c, { dur: 0.25, vol: 0.3, from: 400, to: 3000 });
       tone(c, { freq: 330, to: 660, dur: 0.18, vol: 0.3, type: 'triangle' });
-    }),
-
-  /** Answer option highlighted. */
-  select: () =>
-    play((c) => {
-      tone(c, { freq: 900, dur: 0.05, vol: 0.35, type: 'square' });
     }),
 
   /** Correct answer — net swish plus a rising arpeggio. */

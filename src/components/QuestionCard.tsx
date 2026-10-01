@@ -44,7 +44,6 @@ export default function QuestionCard() {
 
   const handleSelect = (idx: number) => {
     if (revealed || state.fiftyFiftyEliminated.includes(idx)) return;
-    sfx.select();
     setSelected(idx);
   };
 
@@ -57,7 +56,6 @@ export default function QuestionCard() {
 
   const handleContinue = () => {
     if (selected === null) return;
-    sfx.tap();
     dispatch({ type: 'ANSWER_QUESTION', selectedIndex: selected });
     setSelected(null);
     setRevealed(false);

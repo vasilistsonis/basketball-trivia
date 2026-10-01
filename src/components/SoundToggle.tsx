@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { isMuted, setMuted, onMuteChange, sfx } from '../sound';
+import { isMuted, setMuted, onMuteChange } from '../sound';
 import { IconSound } from './Icons';
 
 export default function SoundToggle({ light = false }: { light?: boolean }) {
@@ -9,7 +9,6 @@ export default function SoundToggle({ light = false }: { light?: boolean }) {
 
   const toggle = () => {
     setMuted(!muted);
-    if (muted) sfx.tap(); // just unmuted — confirm with a click
   };
 
   return (

@@ -121,14 +121,14 @@ export default function GameOver() {
         <div className="go-actions">
           <button
             className="ht-btn-primary"
-            onClick={() => { sfx.tap(); dispatch({ type: 'START_SETUP' }); }}
+            onClick={() => dispatch({ type: 'START_SETUP' })}
           >
             <span>Run It Back</span>
             <span className="arrow"><IconArrow color="#fff" /></span>
           </button>
           <button
             className="ht-btn-ghost"
-            onClick={() => { sfx.tap(); dispatch({ type: 'GO_HOME' }); }}
+            onClick={() => dispatch({ type: 'GO_HOME' })}
           >
             Back to Home
           </button>

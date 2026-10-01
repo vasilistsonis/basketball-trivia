@@ -24,7 +24,6 @@ export default function Home() {
   }, [state.categories.length]);
 
   const handleStart = () => {
-    sfx.tap();
     dispatch({ type: 'START_SETUP' });
   };
 

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { Team } from '../types';
 import { Wordmark, IconArrow } from './Icons';
-import { sfx } from '../sound';
 
 const COLORS = ['#E85D1E', '#10523A', '#3B4D8A', '#B5311A', '#6B4E2E'];
 const COLOR_NAMES: Record<string, string> = {
@@ -29,7 +28,6 @@ export default function TeamSetup() {
 
   const handleStart = (e: React.FormEvent) => {
     e.preventDefault();
-    sfx.tap();
     dispatch({
       type: 'SET_TEAMS',
       teams: [
@@ -41,7 +39,6 @@ export default function TeamSetup() {
   };
 
   const handleBack = () => {
-    sfx.tap();
     dispatch({ type: 'GO_HOME' });
   };
 
@@ -85,7 +82,7 @@ export default function TeamSetup() {
                 key={`t1-${c}`}
                 className={`team-swatch ${team1.color === c ? 'is-selected' : ''}`}
                 style={{ background: c }}
-                onClick={() => { sfx.select(); setTeam1({ ...team1, color: c }); }}
+                onClick={() => setTeam1({ ...team1, color: c })}
               />
             ))}
           </div>
@@ -112,7 +109,7 @@ export default function TeamSetup() {
                 key={`t2-${c}`}
                 className={`team-swatch ${team2.color === c ? 'is-selected' : ''}`}
                 style={{ background: c }}
-                onClick={() => { sfx.select(); setTeam2({ ...team2, color: c }); }}
+                onClick={() => setTeam2({ ...team2, color: c })}
               />
             ))}
           </div>
